@@ -1,0 +1,75 @@
+/**
+ * 路由表与守卫
+ * - requiresAuth：需登录
+ * - requiresAdmin：需管理员
+ * - guestOnly：已登录用户访问登录/注册页时跳转个人中心
+ */
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import DefaultLayout from '@/layouts/DefaultLayout.vue'
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/LoginView.vue'),
+      meta: { title: '登录', guestOnly: true },
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: () => import('@/views/RegisterView.vue'),
+      meta: { title: '注册', guestOnly: true },
+    },
+    {
+      path: '/',
+      component: DefaultLayout,
+      children: [
+        {
+          path: 'profile',
+          name: 'profile',
+          component: () => import('@/views/ProfileView.vue'),
+          meta: { title: '个人中心', requiresAuth: true },
+        },
+        {
+          path: 'profile/edit',
+          name: 'edit-profile',
+          component: () => import('@/views/EditProfileView.vue'),
+          meta: { title: '编辑资料', requiresAuth: true },
+        },
+        {
+          path: 'admin/users',
+          name: 'user-manage',
+          component: () => import('@/views/admin/UserManageView.vue'),
+          meta: { title: '用户管理', requiresAuth: true, requiresAdmin: true },
+        },
+        { path: '', redirect: '/profile' },
+      ],
+    },
+    { path: '/:pathMatch(.*)*', redirect: '/profile' },
+  ],
+})
+
+router.beforeEach(async (to) => {
+  const auth = useAuthStore()
+  if (!auth.initialized) await auth.initialize()
+
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.guestOnly && auth.isAuthenticated) {
+    return { path: '/profile' }
+  }
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return { path: '/profile' }
+  }
+  return true
+})
+
+router.afterEach((to) => {
+  document.title = to.meta.title ? `${to.meta.title} · 用户中心` : '用户中心'
+})
+
+export default router
