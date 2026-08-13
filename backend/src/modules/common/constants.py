@@ -13,6 +13,7 @@ from .exceptions import (
     DomainError,
     InsufficientCreditsError,
     PermissionDeniedError,
+    PictureNotFoundError,
     RateLimitNotFoundError,
     ResourceExistsError,
     ResourceNotFoundError,
@@ -42,4 +43,5 @@ EXCEPTION_MAPPING: dict[type[DomainError], Callable[[str], HTTPException]] = {
     ),
     TierNotFoundError: lambda message: NotFoundException(detail="The requested tier was not found."),
     RateLimitNotFoundError: lambda message: NotFoundException(detail="Rate limit configuration not found."),
+    PictureNotFoundError: lambda message: NotFoundException(detail="图片不存在"),
 }

@@ -55,6 +55,12 @@ class RateLimitNotFoundError(ResourceNotFoundError):
     pass
 
 
+class PictureNotFoundError(ResourceNotFoundError):
+    """Raised when a picture cannot be found."""
+
+    pass
+
+
 class InsufficientCreditsError(DomainError):
     """Raised when a user doesn't have enough credits for an operation."""
 

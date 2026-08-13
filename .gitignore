@@ -146,3 +146,6 @@ src/.env
 # Don't ignore files inside of script folder:
 !scripts/*
 
+
+# 腾讯云 COS 密钥配置（含真实 Secret，勿提交）
+backend/存储桶配置.txt

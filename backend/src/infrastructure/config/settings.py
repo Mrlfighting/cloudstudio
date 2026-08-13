@@ -360,6 +360,24 @@ class TaskiqSettings(BaseSettings):
             raise ValueError(f"Unsupported broker type: {self.TASKIQ_BROKER_TYPE}")
 
 
+class TencentCloudSettings(BaseSettings):
+    """腾讯云 COS 对象存储配置（图片模块）。"""
+
+    COS_SECRET_ID: str = config("COS_SECRET_ID", default="")
+    COS_SECRET_KEY: str = config("COS_SECRET_KEY", default="")
+    COS_REGION: str = config("COS_REGION", default="")
+    COS_BUCKET: str = config("COS_BUCKET", default="")
+    # 留空则用默认域名 https://<bucket>.cos.<region>.myqcloud.com
+    COS_DOMAIN: str = config("COS_DOMAIN", default="")
+
+    @property
+    def COS_BASE_URL(self) -> str:
+        """图片访问基础 URL（不含 key）。"""
+        if self.COS_DOMAIN:
+            return self.COS_DOMAIN.rstrip("/")
+        return f"https://{self.COS_BUCKET}.cos.{self.COS_REGION}.myqcloud.com"
+
+
 class Settings(
     EnvironmentSettings,
     DatabaseSettings,
@@ -376,6 +394,7 @@ class Settings(
     SecuritySettings,
     LoggingSettings,
     TaskiqSettings,
+    TencentCloudSettings,
 ):
     """Main settings class that combines all setting categories."""
 
