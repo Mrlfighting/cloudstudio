@@ -46,6 +46,12 @@ const router = createRouter({
           meta: { title: '图片库', requiresAuth: true },
         },
         {
+          path: 'pictures/my',
+          name: 'my-uploads',
+          component: () => import('@/views/pictures/MyUploadsView.vue'),
+          meta: { title: '我的上传', requiresAuth: true },
+        },
+        {
           path: 'pictures/manage',
           name: 'picture-manage',
           component: () => import('@/views/pictures/admin/PictureManageView.vue'),

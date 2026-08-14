@@ -1,16 +1,21 @@
 <script setup lang="ts">
 /**
- * 用户端图片列表：搜索 / 分类 / 排序 / 分页
+ * 用户端图片列表：搜索 / 分类 / 排序 / 分页（登录用户可上传）
  */
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
 import { pictureApi } from '@/api/picture'
 import { getErrorMessage } from '@/api/http'
 import { PICTURE_CATEGORIES, type PictureListItemRead, type PictureSort } from '@/types/picture'
 import PictureCard from '@/components/PictureCard.vue'
+import PictureUploadDialog from './admin/PictureUploadDialog.vue'
+
+const router = useRouter()
 
 const loading = ref(false)
 const rows = ref<PictureListItemRead[]>([])
+const uploadVisible = ref(false)
 
 const filters = reactive({
   keyword: '',
@@ -91,6 +96,13 @@ onMounted(load)
           <el-radio-button value="time">最新</el-radio-button>
           <el-radio-button value="popularity">最热</el-radio-button>
         </el-radio-group>
+
+        <div class="toolbar-actions">
+          <el-button @click="router.push('/pictures/my')">
+            <el-icon style="margin-right: 4px"><Folder /></el-icon>我的上传
+          </el-button>
+          <el-button type="primary" :icon="'Upload'" @click="uploadVisible = true">上传图片</el-button>
+        </div>
       </div>
     </el-card>
 
@@ -112,6 +124,8 @@ onMounted(load)
         @size-change="onSizeChange"
       />
     </div>
+
+    <PictureUploadDialog v-model="uploadVisible" @success="load" />
   </div>
 </template>
 
@@ -126,6 +140,12 @@ onMounted(load)
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+.toolbar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
 }
 
 .search {

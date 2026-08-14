@@ -83,17 +83,40 @@ function statusLabel(s: string): string {
 
 async function onAudit(row: PictureListItemRead, status: 'approved' | 'rejected') {
   const action = status === 'approved' ? '通过' : '拒绝'
-  try {
-    await ElMessageBox.confirm(`确认${action}图片「${row.name}」？`, '审核图片', {
-      type: 'warning',
-      confirmButtonText: '确认',
-      cancelButtonText: '取消',
-    })
-  } catch {
-    return
+  let reviewReason: string | undefined
+
+  if (status === 'rejected') {
+    // 拒绝必须填写理由
+    try {
+      const { value } = await ElMessageBox.prompt(
+        `请输入拒绝「${row.name}」的理由`,
+        '拒绝图片',
+        {
+          type: 'warning',
+          confirmButtonText: '确认拒绝',
+          cancelButtonText: '取消',
+          inputPattern: /\S+/,
+          inputErrorMessage: '拒绝理由不能为空',
+        },
+      )
+      reviewReason = value.trim()
+    } catch {
+      return // 取消
+    }
+  } else {
+    try {
+      await ElMessageBox.confirm(`确认通过图片「${row.name}」？`, '审核图片', {
+        type: 'warning',
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+      })
+    } catch {
+      return
+    }
   }
+
   try {
-    await pictureApi.audit(row.id, status)
+    await pictureApi.audit(row.id, status, reviewReason)
     ElMessage.success(`图片审核${action}`)
     load()
   } catch (err) {
@@ -220,6 +243,11 @@ onMounted(load)
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
             <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="审核理由" min-width="140">
+          <template #default="{ row }">
+            <EmptyValue :value="row.review_reason" />
           </template>
         </el-table-column>
         <el-table-column prop="download_count" label="下载" width="70" />

@@ -21,6 +21,11 @@ export const pictureApi = {
     return http.get<PictureListResponse>('/pictures/manage', { params }).then((r) => r.data)
   },
 
+  /** 我的上传（登录用户，全状态含拒绝理由） */
+  my(params: PictureListParams = {}): Promise<PictureListResponse> {
+    return http.get<PictureListResponse>('/pictures/my', { params }).then((r) => r.data)
+  },
+
   /** 图片详情（仅已发布） */
   get(id: number): Promise<PictureRead> {
     return http.get<PictureRead>(`/pictures/${id}`).then((r) => r.data)
@@ -42,10 +47,13 @@ export const pictureApi = {
     return http.patch<MessageResponse>(`/pictures/${id}`, payload).then((r) => r.data)
   },
 
-  /** 审核图片 */
-  audit(id: number, status: 'approved' | 'rejected'): Promise<MessageResponse> {
+  /** 审核图片（拒绝时 reviewReason 必填） */
+  audit(id: number, status: 'approved' | 'rejected', reviewReason?: string): Promise<MessageResponse> {
     return http
-      .patch<MessageResponse>(`/pictures/${id}/status`, { status })
+      .patch<MessageResponse>(`/pictures/${id}/status`, {
+        status,
+        ...(reviewReason ? { review_reason: reviewReason } : {}),
+      })
       .then((r) => r.data)
   },
 

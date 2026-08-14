@@ -26,6 +26,7 @@ export interface PictureRead {
   color_mode: string | null
   user_id: number
   status: PictureStatus
+  review_reason: string | null
   download_count: number
   created_at: string | null
   updated_at: string | null
@@ -42,6 +43,8 @@ export interface PictureListItemRead {
   pic_height: number | null
   pic_format: string | null
   status: PictureStatus
+  review_reason: string | null
+  user_id: number
   download_count: number
   created_at: string | null
 }
