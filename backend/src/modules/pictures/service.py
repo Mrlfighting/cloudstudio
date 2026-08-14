@@ -137,6 +137,7 @@ class PictureService:
         category: str | None,
         keyword: str | None,
         sort: str,
+        user_id: int | None = None,
     ) -> dict[str, Any]:
         """通用列表查询，返回 fastcrud GetMultiResponseDict 形状。"""
         conditions = [Picture.is_deleted == False]  # noqa: E712
@@ -144,6 +145,8 @@ class PictureService:
             conditions.append(Picture.status == status)
         if category:
             conditions.append(Picture.category == category)
+        if user_id is not None:
+            conditions.append(Picture.user_id == user_id)
         if keyword:
             kw = f"%{keyword}%"
             conditions.append(
@@ -190,6 +193,17 @@ class PictureService:
             status=status, category=category, keyword=keyword, sort=sort,
         )
 
+    async def list_my(
+        self, db: AsyncSession, user_id: int, *, page: int = 1, items_per_page: int = 10,
+        category: str | None = None, keyword: str | None = None, sort: str = "time",
+        status: str | None = None,
+    ) -> dict[str, Any]:
+        """我的上传：当前用户上传的全部图片（全状态，含拒绝理由）。"""
+        return await self._list(
+            db, page=page, items_per_page=items_per_page,
+            status=status, category=category, keyword=keyword, sort=sort, user_id=user_id,
+        )
+
     async def get(self, db: AsyncSession, picture_id: int, *, require_approved: bool = False) -> dict[str, Any]:
         """详情。用户端 require_approved=True 只读已发布。"""
         filters: dict[str, Any] = {"id": picture_id, "is_deleted": False}
@@ -214,11 +228,16 @@ class PictureService:
         return existing
 
     async def audit(self, db: AsyncSession, picture_id: int, data: PictureStatusUpdate) -> dict[str, Any]:
-        """管理员审核：approved / rejected。"""
+        """管理员审核：approved / rejected。通过时清空 review_reason，拒绝时保存理由。"""
         existing = await crud_pictures.get(db=db, id=picture_id, is_deleted=False)
         if not existing:
             raise PictureNotFoundError(f"图片 {picture_id} 不存在")
-        await crud_pictures.update(db=db, object=data, id=picture_id)
+        update_dict: dict[str, Any] = {"status": data.status}
+        if data.status == PictureStatus.APPROVED.value:
+            update_dict["review_reason"] = None
+        else:
+            update_dict["review_reason"] = data.review_reason
+        await crud_pictures.update(db=db, object=update_dict, id=picture_id)
         return existing
 
     async def delete(self, db: AsyncSession, picture_id: int) -> None:

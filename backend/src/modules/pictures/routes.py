@@ -19,9 +19,9 @@ router = APIRouter(tags=["Pictures"])
     "/",
     status_code=status.HTTP_201_CREATED,
     response_model=PictureRead,
-    summary="上传图片（仅管理员）",
+    summary="上传图片（登录用户）",
     description="""
-           仅管理员可用：multipart 上传图片文件并填写元信息。
+           登录用户可上传：multipart 上传图片文件并填写元信息。
 
            - file：图片文件（JPEG/PNG/WebP/GIF，≤10MB）
            - name：名称
@@ -29,18 +29,18 @@ router = APIRouter(tags=["Pictures"])
            - category：分类（预置：风景/人物/动物/建筑/美食/科技/插画/其他）
            - tags：标签（JSON 数组字符串，如 ["风景","自然"]）
 
-           系统自动解析宽高、体积、格式、色彩模式并存入数据库。上传后状态为"待审核"，审核通过后用户可见。
+           系统自动解析宽高、体积、格式、色彩模式并存入数据库。上传后状态为"待审核"，管理员审核通过后所有用户可见。
            """,
     responses={
         201: {"description": "上传成功"},
-        403: {"description": "无权限 - 需要管理员"},
+        401: {"description": "未登录"},
         422: {"description": "参数校验失败"},
     },
     response_description="创建的图片信息",
 )
 async def upload_picture(
     db: AsyncSessionDep,
-    current_user: CurrentSuperUserDep,
+    current_user: CurrentUserDep,
     picture_service: PictureServiceDep,
     file: UploadFile = File(...),
     name: str = Form(..., min_length=1, max_length=128),
@@ -48,7 +48,7 @@ async def upload_picture(
     category: str = Form(...),
     tags: str = Form("[]"),
 ) -> dict[str, Any]:
-    """上传图片（仅管理员）。"""
+    """上传图片（登录用户，待审核）。"""
     try:
         return await picture_service.upload(
             file=file, name=name, introduction=introduction,
@@ -135,6 +135,41 @@ async def manage_pictures(
         if http_exception:
             raise http_exception
         raise HTTPException(status_code=500, detail="获取图片管理列表失败")
+
+
+@router.get(
+    "/my",
+    response_model=PaginatedListResponse[PictureListItemRead],
+    summary="我的上传（登录用户）",
+    description="""
+           登录用户查看自己上传的全部图片（含待审核/已通过/已拒绝），展示状态与拒绝理由。
+           """,
+    responses={401: {"description": "未登录"}},
+    response_description="分页图片列表",
+)
+async def list_my_pictures(
+    db: AsyncSessionDep,
+    picture_service: PictureServiceDep,
+    current_user: CurrentUserDep,
+    page: int = Query(1, ge=1),
+    items_per_page: int = Query(10, ge=1, le=100),
+    category: str | None = Query(None),
+    keyword: str | None = Query(None),
+    sort: str = Query("time", pattern="^(time|popularity)$"),
+    pic_status: str | None = Query(None, alias="status", pattern="^(pending|approved|rejected)$"),
+) -> dict[str, Any]:
+    """我的上传列表（全状态）。"""
+    try:
+        data = await picture_service.list_my(
+            db=db, user_id=current_user["id"], page=page, items_per_page=items_per_page,
+            category=category, keyword=keyword, sort=sort, status=pic_status,
+        )
+        return paginated_response(crud_data=data, page=page, items_per_page=items_per_page)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="获取我的上传列表失败")
 
 
 @router.get(

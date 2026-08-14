@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .enums import PictureCategory
 
@@ -25,6 +25,7 @@ class PictureRead(BaseModel):
     color_mode: str | None = None
     user_id: int
     status: str
+    review_reason: str | None = None
     download_count: int = 0
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -44,6 +45,8 @@ class PictureListItemRead(BaseModel):
     pic_height: int | None = None
     pic_format: str | None = None
     status: str
+    review_reason: str | None = None
+    user_id: int
     download_count: int = 0
     created_at: datetime | None = None
 
@@ -78,8 +81,16 @@ class PictureUpdate(BaseModel):
 
 
 class PictureStatusUpdate(BaseModel):
-    """管理员审核图片。"""
+    """管理员审核图片。拒绝时 review_reason 必填。"""
 
     model_config = ConfigDict(extra="forbid")
 
     status: Literal["approved", "rejected"]
+    review_reason: Annotated[str | None, Field(max_length=512)] = None
+
+    @model_validator(mode="after")
+    def _validate_reject_reason(self) -> "PictureStatusUpdate":
+        """拒绝时必须有理由。"""
+        if self.status == "rejected" and (self.review_reason is None or not self.review_reason.strip()):
+            raise ValueError("拒绝时必须填写拒绝理由")
+        return self

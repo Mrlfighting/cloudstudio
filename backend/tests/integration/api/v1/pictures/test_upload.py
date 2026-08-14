@@ -64,14 +64,17 @@ async def test_upload_requires_login(client: AsyncClient, mocker):
     assert resp.status_code == 401
 
 
-async def test_upload_forbidden_for_regular_user(auth_client: AsyncClient, mocker):
-    """普通用户上传 → 403。"""
+async def test_upload_success_for_regular_user(auth_client: AsyncClient, mocker, test_user: dict):
+    """普通用户可上传 → 201，状态为待审核，user_id 为上传者。"""
     _mock_cos(mocker)
     files = {"file": ("t.png", make_png_image(), "image/png")}
-    data = {"name": "x", "category": "风景"}
+    data = {"name": "普通用户上传", "category": "风景"}
 
     resp = await auth_client.post("/api/v1/pictures/", files=files, data=data)
-    assert resp.status_code == 403
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["status"] == "pending"
+    assert body["user_id"] == test_user["id"]
 
 
 async def test_upload_invalid_category(superuser_auth_client: AsyncClient, mocker):

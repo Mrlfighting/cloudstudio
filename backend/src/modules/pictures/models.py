@@ -44,6 +44,8 @@ class Picture(Base, TimestampMixin, SoftDeleteMixin):
     # tags 为 JSON 列，PostgreSQL 的 json 类型不支持 btree 索引（搜索用 cast(tags as text) ILIKE）
     tags: Mapped[list[str]] = mapped_column(JSON, default_factory=list)
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    # 审核理由（拒绝时必填，通过时清空）
+    review_reason: Mapped[str | None] = mapped_column(String(512), default=None)
     download_count: Mapped[int] = mapped_column(Integer, default=0)
 
     def __repr__(self) -> str:
