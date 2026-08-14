@@ -30,6 +30,8 @@ async function handleLogout() {
         <el-menu mode="horizontal" router :default-active="$route.path" :ellipsis="false" class="nav">
           <el-menu-item index="/profile">个人中心</el-menu-item>
           <el-menu-item index="/profile/edit">编辑资料</el-menu-item>
+          <el-menu-item index="/pictures">图片库</el-menu-item>
+          <el-menu-item v-if="auth.isAdmin" index="/pictures/manage">图片管理</el-menu-item>
           <el-menu-item v-if="auth.isAdmin" index="/admin/users">用户管理</el-menu-item>
         </el-menu>
 

@@ -40,6 +40,24 @@ const router = createRouter({
           meta: { title: '编辑资料', requiresAuth: true },
         },
         {
+          path: 'pictures',
+          name: 'picture-list',
+          component: () => import('@/views/pictures/PictureListView.vue'),
+          meta: { title: '图片库', requiresAuth: true },
+        },
+        {
+          path: 'pictures/manage',
+          name: 'picture-manage',
+          component: () => import('@/views/pictures/admin/PictureManageView.vue'),
+          meta: { title: '图片管理', requiresAuth: true, requiresAdmin: true },
+        },
+        {
+          path: 'pictures/:id',
+          name: 'picture-detail',
+          component: () => import('@/views/pictures/PictureDetailView.vue'),
+          meta: { title: '图片详情', requiresAuth: true },
+        },
+        {
           path: 'admin/users',
           name: 'user-manage',
           component: () => import('@/views/admin/UserManageView.vue'),
