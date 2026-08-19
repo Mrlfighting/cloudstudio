@@ -61,6 +61,24 @@ class PictureNotFoundError(ResourceNotFoundError):
     pass
 
 
+class SpaceNotFoundError(DomainError):
+    """Raised when a space cannot be found."""
+
+    pass
+
+
+class SpaceExistsError(DomainError):
+    """Raised when a user already has a space and tries to create another."""
+
+    pass
+
+
+class SpaceBannedError(DomainError):
+    """Raised when accessing a banned space."""
+
+    pass
+
+
 class InsufficientCreditsError(DomainError):
     """Raised when a user doesn't have enough credits for an operation."""
 

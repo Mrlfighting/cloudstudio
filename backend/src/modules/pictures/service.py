@@ -187,7 +187,8 @@ class PictureService:
         user_id: int | None = None,
     ) -> dict[str, Any]:
         """通用列表查询，返回 fastcrud GetMultiResponseDict 形状。"""
-        conditions = [Picture.is_deleted == False]  # noqa: E712
+        # 公共图库隔离：仅展示 space_id 为 NULL 的图片，空间图片不进入公共列表/搜索
+        conditions = [Picture.is_deleted == False, Picture.space_id.is_(None)]  # noqa: E712
         if status:
             conditions.append(Picture.status == status)
         if category:
@@ -256,7 +257,8 @@ class PictureService:
     @cached(key_prefix="pic:detail", ttl=DETAIL_TTL, key_builder=_detail_key, track_hot=True)
     async def get(self, db: AsyncSession, picture_id: int, *, require_approved: bool = False) -> dict[str, Any]:
         """详情。用户端 require_approved=True 只读已发布（二级缓存 + 热key探测）。"""
-        filters: dict[str, Any] = {"id": picture_id, "is_deleted": False}
+        # 公共图库隔离：仅访问 space_id 为 NULL 的图片
+        filters: dict[str, Any] = {"id": picture_id, "is_deleted": False, "space_id": None}
         if require_approved:
             filters["status"] = PictureStatus.APPROVED.value
         picture = await crud_pictures.get(db=db, schema_to_select=PictureRead, **filters)
@@ -301,9 +303,9 @@ class PictureService:
         await _invalidate_picture_cache(picture_id)
 
     async def download(self, db: AsyncSession, picture_id: int) -> str:
-        """下载：下载次数 +1，返回 COS URL（仅已发布）。"""
+        """下载：下载次数 +1，返回 COS URL（仅已发布，公共图库隔离）。"""
         picture = await crud_pictures.get(
-            db=db, id=picture_id, is_deleted=False, status=PictureStatus.APPROVED.value,
+            db=db, id=picture_id, is_deleted=False, status=PictureStatus.APPROVED.value, space_id=None,
         )
         if not picture:
             raise PictureNotFoundError(f"图片 {picture_id} 不存在或未发布")

@@ -40,6 +40,9 @@ class Picture(Base, TimestampMixin, SoftDeleteMixin):
 
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id"), index=True)
 
+    # 所属空间（NULL 表示公共图库图片）
+    space_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("spaces.id"), index=True, default=None)
+
     # 审核状态（pending/approved/rejected）与下载热度
     # tags 为 JSON 列，PostgreSQL 的 json 类型不支持 btree 索引（搜索用 cast(tags as text) ILIKE）
     tags: Mapped[list[str]] = mapped_column(JSON, default_factory=list)

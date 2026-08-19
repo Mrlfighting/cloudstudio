@@ -24,6 +24,7 @@ class PictureRead(BaseModel):
     pic_format: str | None = None
     color_mode: str | None = None
     user_id: int
+    space_id: int | None = None
     status: str
     review_reason: str | None = None
     download_count: int = 0
@@ -47,6 +48,7 @@ class PictureListItemRead(BaseModel):
     status: str
     review_reason: str | None = None
     user_id: int
+    space_id: int | None = None
     download_count: int = 0
     created_at: datetime | None = None
 
@@ -66,6 +68,7 @@ class PictureCreateInternal(BaseModel):
     pic_format: str | None = None
     color_mode: str | None = None
     user_id: int
+    space_id: int | None = None
     status: str = "pending"
 
 
