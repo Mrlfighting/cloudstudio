@@ -22,6 +22,7 @@
 5. **密钥绝不提交**：.env、backend/存储桶配置.txt（COS 密钥）必须被 gitignore 屏蔽，提交前检查 `git status`。
 6. **文件操作限定项目内**：代码/下载/缓存不得写入项目外目录。
 7. **提交时机**：用户测试确认「可以提交」后才提交；提交前向用户核对范围。
+8. **提交信息不加 Co-Authored-By**：不用 Claude Code 默认追加的 `Co-Authored-By: Claude` 行（GitHub 共同作者约定），保持提交信息干净。
 
 ## 三、分支拓扑
 
