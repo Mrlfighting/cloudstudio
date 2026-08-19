@@ -11,6 +11,9 @@ if MEMCACHED_INSTALLED:
 if REDIS_INSTALLED:
     from .backends import RedisBackend, RedisSettings
 
+from .backends.memory import MemoryBackend
+from .two_level import TwoLevelCacheManager, get_cache_manager, set_cache_manager
+
 
 async def initialize_cache() -> None:
     """Initialize the cache backends.
@@ -71,3 +74,42 @@ async def close_cache() -> None:
         backend = cache_provider.get_backend(CacheBackend.REDIS.value)
         if hasattr(backend, "client") and hasattr(backend.client, "close"):
             await backend.client.close()
+
+
+async def initialize_two_level_cache() -> None:
+    """初始化二级缓存管理器（L1 内存 + L2 Redis）。
+
+    独立于单后端 cache_provider 的二级缓存机制，供 service 层方法级缓存使用。
+    """
+    settings = get_settings()
+    if not settings.CACHE_TWO_TIER_ENABLED:
+        return
+
+    local = MemoryBackend(maxsize=settings.CACHE_LOCAL_MAXSIZE, ttl=settings.CACHE_LOCAL_TTL)
+    redis = RedisBackend(
+        settings=RedisSettings(
+            host=settings.CACHE_REDIS_HOST,
+            port=settings.CACHE_REDIS_PORT,
+            db=settings.CACHE_REDIS_DB,
+            password=settings.CACHE_REDIS_PASSWORD,
+            connect_timeout=settings.CACHE_REDIS_CONNECT_TIMEOUT,
+            pool_size=settings.CACHE_REDIS_POOL_SIZE,
+        )
+    )
+    manager = TwoLevelCacheManager(
+        local=local,
+        redis=redis,
+        enabled=settings.CACHE_TWO_TIER_ENABLED,
+        local_ttl=settings.CACHE_LOCAL_TTL,
+        hot_key_threshold=settings.CACHE_HOT_KEY_THRESHOLD,
+        hot_key_window=settings.CACHE_HOT_KEY_WINDOW,
+    )
+    set_cache_manager(manager)
+
+
+async def close_two_level_cache() -> None:
+    """关闭二级缓存管理器并清空单例。"""
+    manager = get_cache_manager()
+    if manager is not None:
+        await manager.close()
+    set_cache_manager(None)

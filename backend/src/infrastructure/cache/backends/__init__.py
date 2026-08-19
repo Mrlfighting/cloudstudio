@@ -7,6 +7,8 @@ CacheBackend interface.
 
 from importlib.util import find_spec
 
+from .memory import MemoryBackend
+
 MEMCACHED_INSTALLED = find_spec("aiomcache") is not None
 REDIS_INSTALLED = find_spec("redis.asyncio") is not None
 
@@ -27,6 +29,6 @@ else:
     RedisBackend = None  # type: ignore
     RedisSettings = None  # type: ignore
 
-__all__ = ["MemcachedBackend", "MemcachedSettings", "RedisBackend", "RedisSettings"]
+__all__ = ["MemcachedBackend", "MemcachedSettings", "MemoryBackend", "RedisBackend", "RedisSettings"]
 if MEMCACHED_INSTALLED:
     __all__.append("PatternMatchingNotSupportedError")

@@ -16,7 +16,12 @@ from fastapi.openapi.utils import get_openapi
 from ..modules.common.utils.error_handler import register_exception_handlers
 from .auth.dependencies import get_current_superuser
 from .auth.setup import auth
-from .cache.initialize import close_cache, initialize_cache
+from .cache.initialize import (
+    close_cache,
+    close_two_level_cache,
+    initialize_cache,
+    initialize_two_level_cache,
+)
 from .config.settings import (
     CacheSettings,
     DatabaseSettings,
@@ -24,6 +29,7 @@ from .config.settings import (
     EnvironmentSettings,
     RateLimiterSettings,
     Settings,
+    TwoTierCacheSettings,
     get_settings,
 )
 from .database.session import create_tables
@@ -60,6 +66,9 @@ def lifespan_factory(
             if isinstance(settings, CacheSettings) and settings.CACHE_ENABLED:
                 await initialize_cache()
 
+            if isinstance(settings, TwoTierCacheSettings) and settings.CACHE_TWO_TIER_ENABLED:
+                await initialize_two_level_cache()
+
             if isinstance(settings, RateLimiterSettings) and settings.RATE_LIMITER_ENABLED:
                 await initialize_rate_limiter()
 
@@ -74,6 +83,9 @@ def lifespan_factory(
 
             if isinstance(settings, CacheSettings) and settings.CACHE_ENABLED:
                 await close_cache()
+
+            if isinstance(settings, TwoTierCacheSettings) and settings.CACHE_TWO_TIER_ENABLED:
+                await close_two_level_cache()
 
             if isinstance(settings, RateLimiterSettings) and settings.RATE_LIMITER_ENABLED:
                 await close_rate_limiter()

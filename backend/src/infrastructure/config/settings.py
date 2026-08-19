@@ -123,6 +123,24 @@ class CacheSettings(BaseSettings):
     CLIENT_CACHE_MAX_AGE: int = config("CLIENT_CACHE_MAX_AGE", default=60, cast=int)
 
 
+class TwoTierCacheSettings(BaseSettings):
+    """二级缓存（本地 L1 + Redis L2）配置。
+
+    Attributes:
+        CACHE_TWO_TIER_ENABLED: 二级缓存全局开关。默认 True。
+        CACHE_LOCAL_MAXSIZE: L1 本地缓存最大条目数。默认 1000。
+        CACHE_LOCAL_TTL: L1 本地缓存默认 TTL（秒）。默认 60。
+        CACHE_HOT_KEY_THRESHOLD: 热key阈值（窗口内访问次数）。默认 10。
+        CACHE_HOT_KEY_WINDOW: 热key统计时间窗口（秒）。默认 60。
+    """
+
+    CACHE_TWO_TIER_ENABLED: bool = config("CACHE_TWO_TIER_ENABLED", default=True, cast=bool)
+    CACHE_LOCAL_MAXSIZE: int = config("CACHE_LOCAL_MAXSIZE", default=1000, cast=int)
+    CACHE_LOCAL_TTL: int = config("CACHE_LOCAL_TTL", default=60, cast=int)
+    CACHE_HOT_KEY_THRESHOLD: int = config("CACHE_HOT_KEY_THRESHOLD", default=10, cast=int)
+    CACHE_HOT_KEY_WINDOW: int = config("CACHE_HOT_KEY_WINDOW", default=60, cast=int)
+
+
 class RateLimiterSettings(BaseSettings):
     """Rate limiter settings.
 
@@ -382,6 +400,7 @@ class Settings(
     EnvironmentSettings,
     DatabaseSettings,
     CacheSettings,
+    TwoTierCacheSettings,
     RateLimiterSettings,
     CORSSettings,
     CompressionSettings,

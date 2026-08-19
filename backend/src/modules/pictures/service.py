@@ -13,9 +13,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
+from ...infrastructure.cache.method_cache import cached
+from ...infrastructure.cache.two_level import get_cache_manager
 from ...infrastructure.config.settings import settings
 from ...infrastructure.logging import get_logger
 from ..common.exceptions import PictureNotFoundError, ValidationError
+from .cache import DETAIL_TTL, LIST_KEY_PREFIX, build_detail_key, build_list_key, list_ttl
 from .crud import crud_pictures
 from .enums import PictureCategory, PictureFormat, PictureStatus
 from .models import Picture
@@ -55,6 +58,49 @@ def _parse_tags(tags_str: str) -> list[str]:
     if not isinstance(tags, list) or not all(isinstance(t, str) for t in tags):
         raise ValidationError("标签格式错误，应为字符串数组")
     return tags
+
+
+def _detail_key(self: Any, db: AsyncSession, picture_id: int, *, require_approved: bool = False) -> str:
+    """详情缓存 key 构造器（忽略 self/db/require_approved）。"""
+    return build_detail_key(picture_id)
+
+
+def _user_list_key(
+    self: Any,
+    db: AsyncSession,
+    *,
+    page: int,
+    items_per_page: int,
+    category: str | None,
+    keyword: str | None,
+    sort: str,
+) -> str:
+    """用户端列表缓存 key 构造器。"""
+    return build_list_key("public", category, keyword, sort, page, items_per_page)
+
+
+def _user_list_ttl(
+    self: Any,
+    db: AsyncSession,
+    *,
+    page: int,
+    items_per_page: int,
+    category: str | None,
+    keyword: str | None,
+    sort: str,
+) -> int:
+    """用户端列表 TTL：按 sort 差异化。"""
+    return list_ttl(sort)
+
+
+async def _invalidate_picture_cache(picture_id: int | None = None) -> None:
+    """写操作后失效相关缓存：详情 + 全部列表前缀。"""
+    manager = get_cache_manager()
+    if manager is None or not manager.enabled:
+        return
+    if picture_id is not None:
+        await manager.evict(build_detail_key(picture_id))
+    await manager.invalidate_by_prefix(LIST_KEY_PREFIX + ":")
 
 
 class PictureService:
@@ -125,6 +171,7 @@ class PictureService:
         created = await crud_pictures.create(db=db, object=internal, schema_to_select=PictureRead)
         if not created:
             raise ValidationError("创建图片记录失败")
+        await _invalidate_picture_cache()
         return created
 
     async def _list(
@@ -170,13 +217,15 @@ class PictureService:
 
         rows = (await db.execute(stmt)).scalars().all()
         data = [PictureListItemRead.model_validate(p).model_dump() for p in rows]
-        return {"data": data, "count": total, "has_more": (page * items_per_page) < total}
+        # 注意：返回 key 用 total_count（与 fastcrud paginated_response 读取的 key 一致）
+        return {"data": data, "total_count": total, "has_more": (page * items_per_page) < total}
 
+    @cached(key_prefix="pic:list", ttl=_user_list_ttl, key_builder=_user_list_key)
     async def list_user(
         self, db: AsyncSession, *, page: int = 1, items_per_page: int = 10,
         category: str | None = None, keyword: str | None = None, sort: str = "time",
     ) -> dict[str, Any]:
-        """用户端：仅已发布（approved）+ 未删除。"""
+        """用户端：仅已发布（approved）+ 未删除（二级缓存）。"""
         return await self._list(
             db, page=page, items_per_page=items_per_page,
             status=PictureStatus.APPROVED.value, category=category, keyword=keyword, sort=sort,
@@ -204,8 +253,9 @@ class PictureService:
             status=status, category=category, keyword=keyword, sort=sort, user_id=user_id,
         )
 
+    @cached(key_prefix="pic:detail", ttl=DETAIL_TTL, key_builder=_detail_key, track_hot=True)
     async def get(self, db: AsyncSession, picture_id: int, *, require_approved: bool = False) -> dict[str, Any]:
-        """详情。用户端 require_approved=True 只读已发布。"""
+        """详情。用户端 require_approved=True 只读已发布（二级缓存 + 热key探测）。"""
         filters: dict[str, Any] = {"id": picture_id, "is_deleted": False}
         if require_approved:
             filters["status"] = PictureStatus.APPROVED.value
@@ -225,6 +275,7 @@ class PictureService:
             update_dict["tags"] = []
         # 已确认图片存在；FastCRUD update 未指定 return_columns 时可能返回 None，不代表失败
         await crud_pictures.update(db=db, object=update_dict, id=picture_id)
+        await _invalidate_picture_cache(picture_id)
         return existing
 
     async def audit(self, db: AsyncSession, picture_id: int, data: PictureStatusUpdate) -> dict[str, Any]:
@@ -238,6 +289,7 @@ class PictureService:
         else:
             update_dict["review_reason"] = data.review_reason
         await crud_pictures.update(db=db, object=update_dict, id=picture_id)
+        await _invalidate_picture_cache(picture_id)
         return existing
 
     async def delete(self, db: AsyncSession, picture_id: int) -> None:
@@ -246,6 +298,7 @@ class PictureService:
         if not existing:
             raise PictureNotFoundError(f"图片 {picture_id} 不存在")
         await crud_pictures.delete(db=db, id=picture_id)
+        await _invalidate_picture_cache(picture_id)
 
     async def download(self, db: AsyncSession, picture_id: int) -> str:
         """下载：下载次数 +1，返回 COS URL（仅已发布）。"""
@@ -256,4 +309,6 @@ class PictureService:
             raise PictureNotFoundError(f"图片 {picture_id} 不存在或未发布")
         new_count = (picture.get("download_count") or 0) + 1
         await crud_pictures.update(db=db, object={"download_count": new_count}, id=picture_id)
+        # 下载计数变化，失效详情缓存；popularity 列表靠短 TTL 自愈
+        await _invalidate_picture_cache(picture_id)
         return cast(str, picture["url"])
