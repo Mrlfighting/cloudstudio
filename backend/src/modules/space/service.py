@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
 from ...infrastructure.config.settings import settings
+from ...infrastructure.image_search import ImageSearchResponse, search_image
 from ...infrastructure.logging import get_logger
 from ..common.exceptions import (
     PictureNotFoundError,
@@ -317,6 +318,11 @@ class SpaceService:
             raise PictureNotFoundError(f"图片 {picture_id} 不存在")
         await crud_pictures.delete(db=db, id=picture_id)
         await self._add_quota(db, space.id, -(picture.get("pic_size") or 0), -1)
+
+    async def search_similar(self, db: AsyncSession, current_user: dict[str, Any], picture_id: int) -> ImageSearchResponse:
+        """以图搜图：对空间内图片搜索相似图片。"""
+        picture = await self.get_picture(db, current_user, picture_id)
+        return await search_image(picture["url"])
 
     # ------------------------------------------------------------------ 辅助
 

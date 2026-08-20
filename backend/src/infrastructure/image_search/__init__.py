@@ -10,7 +10,12 @@ from .exceptions import (
     EngineTimeoutError,
     ImageSearchException,
 )
-from .facade import ImageSearchFacade, get_image_search_facade, set_image_search_facade
+from .facade import (
+    ImageSearchFacade,
+    get_image_search_facade,
+    search_image,
+    set_image_search_facade,
+)
 from .models import ImageSearchResponse, SearchResult, SourceSearchResult
 
 __all__ = [
@@ -25,4 +30,5 @@ __all__ = [
     "EngineParseError",
     "get_image_search_facade",
     "set_image_search_facade",
+    "search_image",
 ]

@@ -109,3 +109,11 @@ def set_image_search_facade(facade: ImageSearchFacade | None) -> None:
     """设置 / 清空门面单例（测试注入用）。"""
     global _facade
     _facade = facade
+
+
+async def search_image(image_url: str) -> ImageSearchResponse:
+    """门面级便捷入口：开关关闭/未初始化时返回空 sources，绝不抛异常。"""
+    facade = get_image_search_facade()
+    if facade is None:
+        return ImageSearchResponse(query_url=image_url, sources=[])
+    return await facade.search(image_url)

@@ -33,6 +33,7 @@ from .config.settings import (
     get_settings,
 )
 from .database.session import create_tables
+from .image_search.initialize import close_image_search, initialize_image_search
 from .middleware import ClientCacheMiddleware, SecurityHeadersMiddleware
 from .rate_limit.initialize import close_rate_limiter, initialize_rate_limiter
 from .rate_limit.middleware import RateLimiterMiddleware
@@ -72,6 +73,9 @@ def lifespan_factory(
             if isinstance(settings, RateLimiterSettings) and settings.RATE_LIMITER_ENABLED:
                 await initialize_rate_limiter()
 
+            if getattr(settings, "IMAGE_SEARCH_ENABLED", False):
+                initialize_image_search()
+
             await auth.initialize()
 
             initialization_complete.set()
@@ -89,6 +93,8 @@ def lifespan_factory(
 
             if isinstance(settings, RateLimiterSettings) and settings.RATE_LIMITER_ENABLED:
                 await close_rate_limiter()
+
+            await close_image_search()
 
     return lifespan
 

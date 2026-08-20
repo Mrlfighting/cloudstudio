@@ -7,6 +7,7 @@ from fastcrud import PaginatedListResponse, paginated_response
 
 from ...infrastructure.auth.http_exceptions import HTTPException
 from ...infrastructure.dependencies import AsyncSessionDep, CurrentSuperUserDep, CurrentUserDep
+from ...infrastructure.image_search import ImageSearchResponse
 from ..common.utils.error_handler import handle_exception
 from ..pictures.schemas import PictureListItemRead, PictureRead, PictureUpdate
 from .dependencies import SpaceServiceDep
@@ -166,6 +167,28 @@ async def get_space_picture(
         if http_exception:
             raise http_exception
         raise HTTPException(status_code=500, detail="获取空间图片详情失败")
+
+
+@router.get(
+    "/my/pictures/{picture_id}/similar",
+    response_model=ImageSearchResponse,
+    summary="以图搜图（登录用户，空间内）",
+    description="对空间内图片搜索全网相似图片，返回多源聚合结果（按来源分组）。",
+)
+async def search_similar_space_picture(
+    picture_id: int,
+    db: AsyncSessionDep,
+    current_user: CurrentUserDep,
+    space_service: SpaceServiceDep,
+) -> ImageSearchResponse:
+    """以图搜图（空间内图片）。"""
+    try:
+        return await space_service.search_similar(db, current_user, picture_id)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="以图搜图失败")
 
 
 @router.patch(

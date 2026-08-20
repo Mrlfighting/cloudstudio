@@ -1,13 +1,14 @@
 """ImageSearchFacade 并发/降级单元测试。"""
 
 import asyncio
+from unittest.mock import AsyncMock
 
 import pytest
 
 from src.infrastructure.image_search.base import SearchEngine
 from src.infrastructure.image_search.exceptions import EngineRequestError
-from src.infrastructure.image_search.facade import ImageSearchFacade
-from src.infrastructure.image_search.models import SearchResult
+from src.infrastructure.image_search.facade import ImageSearchFacade, search_image
+from src.infrastructure.image_search.models import ImageSearchResponse, SearchResult
 
 
 class FakeEngine(SearchEngine):
@@ -120,3 +121,24 @@ async def test_empty_engines():
     resp = await ImageSearchFacade([]).search("http://img")
     assert resp.sources == []
     assert resp.query_url == "http://img"
+
+
+@pytest.mark.asyncio
+async def test_search_image_returns_empty_when_unavailable(monkeypatch):
+    monkeypatch.setattr(
+        "src.infrastructure.image_search.facade.get_image_search_facade", lambda: None
+    )
+    resp = await search_image("http://img")
+    assert resp.query_url == "http://img"
+    assert resp.sources == []
+
+
+@pytest.mark.asyncio
+async def test_search_image_delegates_to_facade(monkeypatch):
+    fake = AsyncMock()
+    fake.search = AsyncMock(return_value=ImageSearchResponse(query_url="http://img", sources=[]))
+    monkeypatch.setattr(
+        "src.infrastructure.image_search.facade.get_image_search_facade", lambda: fake
+    )
+    await search_image("http://img")
+    fake.search.assert_awaited_once_with("http://img")

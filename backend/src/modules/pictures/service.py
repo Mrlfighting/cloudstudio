@@ -16,6 +16,7 @@ from starlette.concurrency import run_in_threadpool
 from ...infrastructure.cache.method_cache import cached
 from ...infrastructure.cache.two_level import get_cache_manager
 from ...infrastructure.config.settings import settings
+from ...infrastructure.image_search import ImageSearchResponse, search_image
 from ...infrastructure.logging import get_logger
 from ..common.exceptions import PictureNotFoundError, ValidationError
 from .cache import DETAIL_TTL, LIST_KEY_PREFIX, build_detail_key, build_list_key, list_ttl
@@ -314,3 +315,8 @@ class PictureService:
         # 下载计数变化，失效详情缓存；popularity 列表靠短 TTL 自愈
         await _invalidate_picture_cache(picture_id)
         return cast(str, picture["url"])
+
+    async def search_similar(self, db: AsyncSession, picture_id: int) -> ImageSearchResponse:
+        """以图搜图：对已发布公共图库图片搜索相似图片。"""
+        picture = await self.get(db, picture_id, require_approved=True)
+        return await search_image(picture["url"])

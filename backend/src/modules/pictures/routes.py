@@ -8,6 +8,7 @@ from fastcrud import PaginatedListResponse, paginated_response
 
 from ...infrastructure.auth.http_exceptions import HTTPException
 from ...infrastructure.dependencies import AsyncSessionDep, CurrentSuperUserDep, CurrentUserDep
+from ...infrastructure.image_search import ImageSearchResponse
 from ..common.utils.error_handler import handle_exception
 from .dependencies import PictureServiceDep
 from .schemas import PictureListItemRead, PictureRead, PictureStatusUpdate, PictureUpdate
@@ -224,6 +225,32 @@ async def download_picture(
         if http_exception:
             raise http_exception
         raise HTTPException(status_code=500, detail="下载图片失败")
+
+
+@router.get(
+    "/{picture_id}/similar",
+    response_model=ImageSearchResponse,
+    summary="以图搜图（登录用户）",
+    description="""
+           登录用户可用：对已发布图片搜索全网相似图片，返回多源聚合结果（按来源分组）。
+           """,
+    responses={401: {"description": "未登录"}, 404: {"description": "图片不存在或未发布"}},
+    response_description="多源相似图片结果",
+)
+async def search_similar_picture(
+    picture_id: int,
+    db: AsyncSessionDep,
+    picture_service: PictureServiceDep,
+    _: CurrentUserDep,
+) -> ImageSearchResponse:
+    """以图搜图（对已发布公共图库图片）。"""
+    try:
+        return await picture_service.search_similar(db, picture_id)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="以图搜图失败")
 
 
 @router.patch(

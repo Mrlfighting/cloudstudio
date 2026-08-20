@@ -1,10 +1,12 @@
 """空间服务单元测试。"""
 
 import asyncio
+from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.infrastructure.image_search.models import ImageSearchResponse
 from src.modules.common.exceptions import (
     PictureNotFoundError,
     SpaceExistsError,
@@ -137,3 +139,20 @@ async def test_space_picture_isolation(
 
     with pytest.raises(PictureNotFoundError):
         await space_service.get_picture(db_session, test_user_2, pic["id"])
+
+
+@pytest.mark.asyncio
+async def test_search_similar_delegates_to_search_image(space_service: SpaceService, monkeypatch):
+    async def fake_get_picture(db, current_user, picture_id):
+        return {"id": picture_id, "url": "http://img/space.jpg", "space_id": 1}
+
+    monkeypatch.setattr(space_service, "get_picture", fake_get_picture)
+    search_mock = AsyncMock(
+        return_value=ImageSearchResponse(query_url="http://img/space.jpg", sources=[])
+    )
+    monkeypatch.setattr("src.modules.space.service.search_image", search_mock)
+
+    result = await space_service.search_similar(db=None, current_user={"id": 1}, picture_id=1)
+
+    search_mock.assert_awaited_once_with("http://img/space.jpg")
+    assert result.query_url == "http://img/space.jpg"
