@@ -358,9 +358,14 @@ class SpaceService:
         }
 
     async def _add_quota(self, db: AsyncSession, space_id: int, size_delta: int, count_delta: int) -> None:
-        """原子更新空间用量（size/count 增量）。"""
+        """原子更新空间用量（size/count 增量），并提交事务。
+
+        upload_picture / delete_picture 中先前的 FastCRUD create/delete 已各自 commit，
+        此处的原生 Core UPDATE 落在新事务里，必须显式 commit 才能持久化（session 依赖结束时只关闭不提交）。
+        """
         await db.execute(
             update(Space)
             .where(Space.id == space_id)
             .values(total_size=Space.total_size + size_delta, total_count=Space.total_count + count_delta)
         )
+        await db.commit()
