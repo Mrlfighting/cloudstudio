@@ -23,6 +23,7 @@ class PictureRead(BaseModel):
     pic_scale: float | None = None
     pic_format: str | None = None
     color_mode: str | None = None
+    primary_color: int | None = None
     user_id: int
     space_id: int | None = None
     status: str
@@ -45,6 +46,7 @@ class PictureListItemRead(BaseModel):
     pic_width: int | None = None
     pic_height: int | None = None
     pic_format: str | None = None
+    primary_color: int | None = None
     status: str
     review_reason: str | None = None
     user_id: int
@@ -67,6 +69,7 @@ class PictureCreateInternal(BaseModel):
     pic_scale: float | None = None
     pic_format: str | None = None
     color_mode: str | None = None
+    primary_color: int | None = None
     user_id: int
     space_id: int | None = None
     status: str = "pending"

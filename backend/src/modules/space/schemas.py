@@ -5,6 +5,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..pictures.schemas import PictureListItemRead
 from .enums import SpaceLevel
 
 
@@ -93,3 +94,9 @@ class SpaceInfoRead(BaseModel):
     remaining_size: int
     remaining_count: int
     created_at: datetime | None = None
+
+
+class ColorSearchItem(PictureListItemRead):
+    """按颜色搜索的结果项：图片列表项 + 颜色距离（越小越相近）。"""
+
+    color_distance: float

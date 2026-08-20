@@ -11,7 +11,7 @@ from ...infrastructure.image_search import ImageSearchResponse
 from ..common.utils.error_handler import handle_exception
 from ..pictures.schemas import PictureListItemRead, PictureRead, PictureUpdate
 from .dependencies import SpaceServiceDep
-from .schemas import SpaceCreate, SpaceInfoRead, SpaceLevelUpdate, SpaceListRead, SpaceRead, SpaceUpdate
+from .schemas import ColorSearchItem, SpaceCreate, SpaceInfoRead, SpaceLevelUpdate, SpaceListRead, SpaceRead, SpaceUpdate
 
 router = APIRouter(tags=["Spaces"])
 
@@ -146,6 +146,29 @@ async def list_space_pictures(
         if http_exception:
             raise http_exception
         raise HTTPException(status_code=500, detail="获取空间图片列表失败")
+
+
+@router.get(
+    "/my/pictures/search-by-color",
+    response_model=list[ColorSearchItem],
+    summary="按颜色搜索（登录用户，空间内）",
+    description="输入一个颜色（如 FF0000），返回自己空间内主色调最相近的图片，按颜色距离升序。",
+)
+async def search_pictures_by_color(
+    db: AsyncSessionDep,
+    current_user: CurrentUserDep,
+    space_service: SpaceServiceDep,
+    color: str = Query(..., min_length=3, max_length=9),
+    limit: int = Query(20, ge=1, le=100),
+) -> list[ColorSearchItem]:
+    """按颜色搜索（空间内图片）。"""
+    try:
+        return await space_service.search_by_color(db, current_user, color, limit)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="按颜色搜索失败")
 
 
 @router.get(

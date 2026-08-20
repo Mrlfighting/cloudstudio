@@ -12,6 +12,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
+from ...infrastructure.color_search import color_distance, extract_primary_color, parse_color
 from ...infrastructure.config.settings import settings
 from ...infrastructure.image_search import ImageSearchResponse, search_image
 from ...infrastructure.logging import get_logger
@@ -37,7 +38,7 @@ from .constants import SPACE_LEVEL_LIMITS
 from .crud import crud_spaces
 from .enums import SpaceLevel, SpaceStatus
 from .models import Space
-from .schemas import SpaceCreateInternal, SpaceListRead, SpaceRead
+from .schemas import ColorSearchItem, SpaceCreateInternal, SpaceListRead, SpaceRead
 
 logger = get_logger()
 
@@ -223,6 +224,9 @@ class SpaceService:
         url = f"{settings.COS_BASE_URL}/{key}"
         logger.info(f"空间图片已上传 COS: {key}（{len(data)} bytes，space={space.id}）")
 
+        # 提取主色调（CI imageAve 优先，Pillow 兜底；失败返回 None）
+        primary_color = await run_in_threadpool(extract_primary_color, key, img)
+
         internal = PictureCreateInternal(
             url=url,
             name=name,
@@ -235,6 +239,7 @@ class SpaceService:
             pic_scale=pic_scale,
             pic_format=pic_format,
             color_mode=img.mode,
+            primary_color=primary_color,
             user_id=current_user["id"],
             status=PictureStatus.APPROVED.value,
             space_id=space.id,
@@ -323,6 +328,37 @@ class SpaceService:
         """以图搜图：对空间内图片搜索相似图片。"""
         picture = await self.get_picture(db, current_user, picture_id)
         return await search_image(picture["url"])
+
+    async def search_by_color(
+        self, db: AsyncSession, current_user: dict[str, Any], color: str, limit: int
+    ) -> list[ColorSearchItem]:
+        """按颜色搜索：返回与目标颜色最相近的空间图片（距离升序）。"""
+        space = await self._get_user_space(db, current_user["id"])
+        try:
+            target = parse_color(color)
+        except ValueError as e:
+            raise ValidationError(str(e)) from e
+
+        stmt = select(Picture).where(
+            Picture.is_deleted == False,  # noqa: E712
+            Picture.space_id == space.id,
+            Picture.primary_color.is_not(None),
+        )
+        rows = (await db.execute(stmt)).scalars().all()
+
+        items: list[ColorSearchItem] = []
+        for p in rows:
+            primary = p.primary_color
+            if primary is None:
+                continue
+            items.append(
+                ColorSearchItem(
+                    **PictureListItemRead.model_validate(p).model_dump(),
+                    color_distance=round(color_distance(target, primary), 2),
+                )
+            )
+        items.sort(key=lambda item: item.color_distance)
+        return items[:limit]
 
     # ------------------------------------------------------------------ 辅助
 

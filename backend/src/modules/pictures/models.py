@@ -37,6 +37,8 @@ class Picture(Base, TimestampMixin, SoftDeleteMixin):
     pic_scale: Mapped[float | None] = mapped_column(Float)
     pic_format: Mapped[str | None] = mapped_column(String(32))
     color_mode: Mapped[str | None] = mapped_column(String(32))
+    # 主色调 0xRRGGBB 的整数值（仅私有空间上传时提取，公共图库为 NULL）
+    primary_color: Mapped[int | None] = mapped_column(Integer)
 
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id"), index=True)
 

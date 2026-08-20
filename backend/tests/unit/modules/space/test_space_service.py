@@ -156,3 +156,37 @@ async def test_search_similar_delegates_to_search_image(space_service: SpaceServ
 
     search_mock.assert_awaited_once_with("http://img/space.jpg")
     assert result.query_url == "http://img/space.jpg"
+
+
+@pytest.mark.asyncio
+async def test_search_by_color_sorted(
+    space_service: SpaceService, db_session: AsyncSession, test_user: dict
+):
+    space = await space_service.create(db_session, "颜色空间", test_user)
+    for i, color in enumerate([0xFF0000, 0xEE0000, 0x0000FF]):
+        internal = PictureCreateInternal(
+            url=f"https://example.com/{i}.png",
+            name=f"图{i}",
+            user_id=test_user["id"],
+            status="approved",
+            space_id=space["id"],
+            primary_color=color,
+        )
+        await crud_pictures.create(db_session, object=internal, schema_to_select=PictureRead)
+
+    result = await space_service.search_by_color(db_session, test_user, "FF0000", 10)
+
+    assert len(result) == 3
+    assert result[0].primary_color == 0xFF0000
+    assert result[0].color_distance == 0.0
+    distances = [r.color_distance for r in result]
+    assert distances == sorted(distances)
+
+
+@pytest.mark.asyncio
+async def test_search_by_color_invalid_color(
+    space_service: SpaceService, db_session: AsyncSession, test_user: dict
+):
+    await space_service.create(db_session, "颜色空间", test_user)
+    with pytest.raises(ValidationError):
+        await space_service.search_by_color(db_session, test_user, "INVALID", 10)
