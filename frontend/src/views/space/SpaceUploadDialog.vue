@@ -7,6 +7,7 @@ import { ElMessage, type FormInstance, type FormRules, type UploadFile } from 'e
 import { spaceApi } from '@/api/space'
 import { getErrorMessage } from '@/api/http'
 import { PICTURE_CATEGORIES } from '@/types/picture'
+import ImageCropper from '@/components/ImageCropper.vue'
 
 const visible = defineModel<boolean>({ default: false })
 const emit = defineEmits<{
@@ -17,6 +18,13 @@ const formRef = ref<FormInstance>()
 const submitting = ref(false)
 const file = ref<File | null>(null)
 const fileList = ref<UploadFile[]>([])
+const cropperVisible = ref(false)
+const previewUrl = ref('')
+
+function setPreview(f: File | null) {
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+  previewUrl.value = f ? URL.createObjectURL(f) : ''
+}
 
 const form = reactive({
   name: '',
@@ -51,10 +59,20 @@ function onFileChange(uploadFile: UploadFile) {
     return
   }
   file.value = raw
+  setPreview(raw)
 }
 
 function onFileRemove() {
   file.value = null
+  setPreview(null)
+}
+
+function onCropConfirm(blob: Blob) {
+  const name = file.value?.name ?? 'image.jpg'
+  file.value = new File([blob], name, { type: blob.type || file.value?.type })
+  setPreview(file.value)
+  cropperVisible.value = false
+  ElMessage.success('裁剪完成')
 }
 
 async function handleSubmit() {
@@ -94,6 +112,7 @@ function resetForm() {
   form.tags = []
   file.value = null
   fileList.value = []
+  setPreview(null)
 }
 </script>
 
@@ -110,12 +129,18 @@ function resetForm() {
           :on-change="onFileChange"
           :on-remove="onFileRemove"
         >
-          <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
-          <div class="el-upload__text">拖拽图片到此处，或<em>点击选择</em></div>
+          <template v-if="!file">
+            <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+            <div class="el-upload__text">拖拽图片到此处，或<em>点击选择</em></div>
+          </template>
+          <img v-else :src="previewUrl" class="preview-img" alt="图片预览" />
           <template #tip>
             <div class="el-upload__tip">JPEG/PNG/WebP/GIF，不超过 10MB</div>
           </template>
         </el-upload>
+        <div v-if="file" class="crop-row">
+          <el-button :icon="'Crop'" @click="cropperVisible = true">裁剪图片</el-button>
+        </div>
       </el-form-item>
 
       <el-form-item label="名称" prop="name">
@@ -157,4 +182,22 @@ function resetForm() {
       <el-button type="primary" :loading="submitting" @click="handleSubmit">上传</el-button>
     </template>
   </el-dialog>
+
+  <ImageCropper v-if="file" v-model="cropperVisible" :file="file" @confirm="onCropConfirm" />
 </template>
+
+<style scoped>
+.preview-img {
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+
+.crop-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+</style>
