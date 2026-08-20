@@ -2,11 +2,15 @@
 /**
  * 图片卡片：列表网格项（缩略图 + 名称 + 分类/标签 + 尺寸/格式/下载数）
  */
+import { ref } from 'vue'
 import type { PictureListItemRead } from '@/types/picture'
+import ShareDialog from './ShareDialog.vue'
 
 defineProps<{
   item: PictureListItemRead
 }>()
+
+const shareVisible = ref(false)
 </script>
 
 <template>
@@ -49,8 +53,13 @@ defineProps<{
         <span v-if="item.pic_width && item.pic_height">{{ item.pic_width }}×{{ item.pic_height }}</span>
         <span v-if="item.pic_format">{{ item.pic_format }}</span>
         <span class="dl-count"><el-icon><Download /></el-icon>{{ item.download_count }}</span>
+        <button class="share-btn" title="分享" @click.stop="shareVisible = true">
+          <el-icon><Share /></el-icon>
+        </button>
       </div>
     </div>
+
+    <ShareDialog v-model="shareVisible" :url="item.url" />
   </el-card>
 </template>
 
@@ -129,5 +138,20 @@ defineProps<{
   align-items: center;
   gap: 4px;
   margin-left: auto;
+}
+
+.share-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #909399;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  font-size: 14px;
+}
+
+.share-btn:hover {
+  color: #409eff;
 }
 </style>

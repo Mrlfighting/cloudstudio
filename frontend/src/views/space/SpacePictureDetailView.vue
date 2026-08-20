@@ -10,6 +10,7 @@ import { getErrorMessage } from '@/api/http'
 import type { PictureRead } from '@/types/picture'
 import EmptyValue from '@/components/EmptyValue.vue'
 import SimilarSearchDialog from '@/components/SimilarSearchDialog.vue'
+import ShareDialog from '@/components/ShareDialog.vue'
 import SpacePictureEditDialog from './SpacePictureEditDialog.vue'
 
 const route = useRoute()
@@ -20,6 +21,7 @@ const notFound = ref(false)
 const detail = ref<PictureRead | null>(null)
 const editVisible = ref(false)
 const similarVisible = ref(false)
+const shareVisible = ref(false)
 
 const id = computed(() => Number(route.params.id))
 
@@ -96,6 +98,7 @@ onMounted(load)
             <div class="info-header">
               <span>{{ detail.name }}</span>
               <div class="actions">
+                <el-button :icon="'Share'" @click="shareVisible = true">分享</el-button>
                 <el-button :icon="'Search'" @click="similarVisible = true">搜相似图</el-button>
                 <el-button type="primary" @click="editVisible = true">编辑</el-button>
                 <el-button type="danger" @click="onDelete">删除</el-button>
@@ -141,6 +144,7 @@ onMounted(load)
 
     <SpacePictureEditDialog v-model="editVisible" :picture="detail" @success="load" />
     <SimilarSearchDialog v-model="similarVisible" :picture-id="detail?.id ?? 0" kind="space" />
+    <ShareDialog v-model="shareVisible" :url="detail?.url ?? ''" />
   </div>
 </template>
 
