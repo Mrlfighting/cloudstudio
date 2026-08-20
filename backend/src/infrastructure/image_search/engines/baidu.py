@@ -43,9 +43,14 @@ class BaiduImageSearchEngine(SearchEngine):
         except ValueError as e:
             raise EngineParseError(f"百度上传响应非 JSON: {e}") from e
 
+        # 百度识图接口反爬：status=1 且 msg=Reject 表示服务端拒绝（data 为 null）
+        if isinstance(upload_json, dict) and upload_json.get("status") not in (None, 0):
+            msg = upload_json.get("msg") or upload_json.get("status")
+            raise EngineParseError(f"百度识图接口拒绝请求：{msg}（可能被反爬拦截，接口已失效）")
+
         sign = _extract_sign(upload_json)
         if not sign:
-            raise EngineParseError("百度上传响应缺少 sign 参数")
+            raise EngineParseError("百度识图接口未返回有效结果（可能被反爬拦截）")
 
         similar_url = f"{settings.IMAGE_SEARCH_BAIDU_SIMILAR_URL}?sign={sign}"
         payload = await self._http.get_json(
