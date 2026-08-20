@@ -7,6 +7,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { pictureApi } from '@/api/picture'
 import type { PictureRead } from '@/types/picture'
 import EmptyValue from '@/components/EmptyValue.vue'
+import SimilarSearchDialog from '@/components/SimilarSearchDialog.vue'
+import ShareDialog from '@/components/ShareDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +16,8 @@ const router = useRouter()
 const loading = ref(false)
 const notFound = ref(false)
 const detail = ref<PictureRead | null>(null)
+const similarVisible = ref(false)
+const shareVisible = ref(false)
 
 const id = computed(() => Number(route.params.id))
 
@@ -71,7 +75,11 @@ onMounted(async () => {
           <template #header>
             <div class="info-header">
               <span>{{ detail.name }}</span>
-              <el-button type="primary" :icon="'Download'" @click="handleDownload">下载</el-button>
+              <div class="actions">
+                <el-button :icon="'Share'" @click="shareVisible = true">分享</el-button>
+                <el-button :icon="'Search'" @click="similarVisible = true">搜相似图</el-button>
+                <el-button type="primary" :icon="'Download'" @click="handleDownload">下载</el-button>
+              </div>
             </div>
           </template>
 
@@ -112,6 +120,9 @@ onMounted(async () => {
         </el-card>
       </div>
     </template>
+
+    <SimilarSearchDialog v-model="similarVisible" :picture-id="detail?.id ?? 0" kind="picture" />
+    <ShareDialog v-model="shareVisible" :url="detail?.url ?? ''" />
   </div>
 </template>
 
@@ -148,6 +159,11 @@ onMounted(async () => {
   justify-content: space-between;
   font-size: 18px;
   font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
 }
 
 @media (max-width: 900px) {

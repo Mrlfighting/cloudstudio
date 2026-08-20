@@ -37,8 +37,13 @@ class Picture(Base, TimestampMixin, SoftDeleteMixin):
     pic_scale: Mapped[float | None] = mapped_column(Float)
     pic_format: Mapped[str | None] = mapped_column(String(32))
     color_mode: Mapped[str | None] = mapped_column(String(32))
+    # 主色调 0xRRGGBB 的整数值（仅私有空间上传时提取，公共图库为 NULL）
+    primary_color: Mapped[int | None] = mapped_column(Integer)
 
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id"), index=True)
+
+    # 所属空间（NULL 表示公共图库图片）
+    space_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("spaces.id"), index=True, default=None)
 
     # 审核状态（pending/approved/rejected）与下载热度
     # tags 为 JSON 列，PostgreSQL 的 json 类型不支持 btree 索引（搜索用 cast(tags as text) ILIKE）

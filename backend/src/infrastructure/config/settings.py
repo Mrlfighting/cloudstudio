@@ -396,6 +396,55 @@ class TencentCloudSettings(BaseSettings):
         return f"https://{self.COS_BUCKET}.cos.{self.COS_REGION}.myqcloud.com"
 
 
+class ImageSearchSettings(BaseSettings):
+    """以图搜图多源聚合配置（Bing 官方 API + 百度抓取）。
+
+    仅作为独立工具包（infrastructure/image_search/）使用，不暴露 HTTP 端点。
+    """
+
+    # 总开关
+    IMAGE_SEARCH_ENABLED: bool = config("IMAGE_SEARCH_ENABLED", default=True, cast=bool)
+    # 通用
+    IMAGE_SEARCH_TIMEOUT: float = config("IMAGE_SEARCH_TIMEOUT", default=10.0, cast=float)
+    IMAGE_SEARCH_USER_AGENT: str = config(
+        "IMAGE_SEARCH_USER_AGENT",
+        default=(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        ),
+    )
+    IMAGE_SEARCH_MAX_RESULTS: int = config("IMAGE_SEARCH_MAX_RESULTS", default=20, cast=int)
+    IMAGE_SEARCH_RETRY: int = config("IMAGE_SEARCH_RETRY", default=0, cast=int)
+
+    # Bing（官方 API，需付费 Key；留空自动跳过）
+    IMAGE_SEARCH_BING_ENABLED: bool = config("IMAGE_SEARCH_BING_ENABLED", default=False, cast=bool)
+    IMAGE_SEARCH_BING_API_KEY: str = config("IMAGE_SEARCH_BING_API_KEY", default="")
+    IMAGE_SEARCH_BING_ENDPOINT: str = config(
+        "IMAGE_SEARCH_BING_ENDPOINT",
+        default="https://api.bing.microsoft.com/v7.0/images/visualsearch",
+    )
+    IMAGE_SEARCH_BING_MARKET: str = config("IMAGE_SEARCH_BING_MARKET", default="zh-CN")
+    IMAGE_SEARCH_BING_TIMEOUT: float = config("IMAGE_SEARCH_BING_TIMEOUT", default=15.0, cast=float)
+
+    # 百度（免费抓取，默认启用）
+    IMAGE_SEARCH_BAIDU_ENABLED: bool = config("IMAGE_SEARCH_BAIDU_ENABLED", default=True, cast=bool)
+    IMAGE_SEARCH_BAIDU_TIMEOUT: float = config("IMAGE_SEARCH_BAIDU_TIMEOUT", default=15.0, cast=float)
+    IMAGE_SEARCH_BAIDU_UPLOAD_URL: str = config(
+        "IMAGE_SEARCH_BAIDU_UPLOAD_URL", default="https://graph.baidu.com/upload"
+    )
+    IMAGE_SEARCH_BAIDU_SIMILAR_URL: str = config(
+        "IMAGE_SEARCH_BAIDU_SIMILAR_URL", default="https://graph.baidu.com/ajax/pcsimi"
+    )
+    IMAGE_SEARCH_BAIDU_UPLOAD_MODE: str = config("IMAGE_SEARCH_BAIDU_UPLOAD_MODE", default="bytes")
+    IMAGE_SEARCH_BAIDU_COOKIE: str = config("IMAGE_SEARCH_BAIDU_COOKIE", default="")
+    IMAGE_SEARCH_BAIDU_REFERER: str = config(
+        "IMAGE_SEARCH_BAIDU_REFERER", default="https://graph.baidu.com/"
+    )
+    IMAGE_SEARCH_BAIDU_REQUEST_INTERVAL: float = config(
+        "IMAGE_SEARCH_BAIDU_REQUEST_INTERVAL", default=1.0, cast=float
+    )
+
+
 class Settings(
     EnvironmentSettings,
     DatabaseSettings,
@@ -414,6 +463,7 @@ class Settings(
     LoggingSettings,
     TaskiqSettings,
     TencentCloudSettings,
+    ImageSearchSettings,
 ):
     """Main settings class that combines all setting categories."""
 

@@ -8,6 +8,7 @@ import type {
   PictureRead,
   PictureUpdatePayload,
 } from '@/types/picture'
+import type { ImageSearchResponse } from '@/types/search'
 import type { MessageResponse } from '@/types/user'
 
 export const pictureApi = {
@@ -29,6 +30,11 @@ export const pictureApi = {
   /** 图片详情（仅已发布） */
   get(id: number): Promise<PictureRead> {
     return http.get<PictureRead>(`/pictures/${id}`).then((r) => r.data)
+  },
+
+  /** 以图搜图（对已有图片搜相似，多源聚合） */
+  similar(id: number): Promise<ImageSearchResponse> {
+    return http.get<ImageSearchResponse>(`/pictures/${id}/similar`).then((r) => r.data)
   },
 
   /** 下载：只构建 URL，用浏览器原生导航（302 重定向到 COS，不用 axios） */

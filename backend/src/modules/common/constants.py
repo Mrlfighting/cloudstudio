@@ -17,6 +17,9 @@ from .exceptions import (
     RateLimitNotFoundError,
     ResourceExistsError,
     ResourceNotFoundError,
+    SpaceBannedError,
+    SpaceExistsError,
+    SpaceNotFoundError,
     TierNotFoundError,
     UserExistsError,
     UserNotFoundError,
@@ -44,4 +47,7 @@ EXCEPTION_MAPPING: dict[type[DomainError], Callable[[str], HTTPException]] = {
     TierNotFoundError: lambda message: NotFoundException(detail="The requested tier was not found."),
     RateLimitNotFoundError: lambda message: NotFoundException(detail="Rate limit configuration not found."),
     PictureNotFoundError: lambda message: NotFoundException(detail="图片不存在"),
+    SpaceNotFoundError: lambda message: NotFoundException(detail="空间不存在"),
+    SpaceExistsError: lambda message: DuplicateValueException(detail=message or "用户已创建空间"),
+    SpaceBannedError: lambda message: ForbiddenException(detail=message or "空间已被封禁"),
 }
