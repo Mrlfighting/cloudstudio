@@ -3,6 +3,7 @@
  */
 import { http } from './http'
 import type {
+  ColorSearchItem,
   SpaceCreatePayload,
   SpaceInfoRead,
   SpaceListParams,
@@ -16,6 +17,7 @@ import type {
   PictureRead,
   PictureUpdatePayload,
 } from '@/types/picture'
+import type { ImageSearchResponse } from '@/types/search'
 import type { MessageResponse } from '@/types/user'
 
 export const spaceApi = {
@@ -71,6 +73,18 @@ export const spaceApi = {
 
   getPicture(id: number): Promise<PictureRead> {
     return http.get<PictureRead>(`/spaces/my/pictures/${id}`).then((r) => r.data)
+  },
+
+  /** 以图搜图（对空间内图片搜相似） */
+  similar(id: number): Promise<ImageSearchResponse> {
+    return http.get<ImageSearchResponse>(`/spaces/my/pictures/${id}/similar`).then((r) => r.data)
+  },
+
+  /** 按颜色搜索（颜色支持 #RRGGBB，返回按距离升序） */
+  searchByColor(params: { color: string; limit?: number }): Promise<ColorSearchItem[]> {
+    return http
+      .get<ColorSearchItem[]>('/spaces/my/pictures/search-by-color', { params })
+      .then((r) => r.data)
   },
 
   updatePicture(id: number, payload: PictureUpdatePayload): Promise<MessageResponse> {

@@ -9,6 +9,7 @@ import { spaceApi } from '@/api/space'
 import { getErrorMessage } from '@/api/http'
 import type { PictureRead } from '@/types/picture'
 import EmptyValue from '@/components/EmptyValue.vue'
+import SimilarSearchDialog from '@/components/SimilarSearchDialog.vue'
 import SpacePictureEditDialog from './SpacePictureEditDialog.vue'
 
 const route = useRoute()
@@ -18,6 +19,7 @@ const loading = ref(false)
 const notFound = ref(false)
 const detail = ref<PictureRead | null>(null)
 const editVisible = ref(false)
+const similarVisible = ref(false)
 
 const id = computed(() => Number(route.params.id))
 
@@ -94,6 +96,7 @@ onMounted(load)
             <div class="info-header">
               <span>{{ detail.name }}</span>
               <div class="actions">
+                <el-button :icon="'Search'" @click="similarVisible = true">搜相似图</el-button>
                 <el-button type="primary" @click="editVisible = true">编辑</el-button>
                 <el-button type="danger" @click="onDelete">删除</el-button>
               </div>
@@ -137,6 +140,7 @@ onMounted(load)
     </template>
 
     <SpacePictureEditDialog v-model="editVisible" :picture="detail" @success="load" />
+    <SimilarSearchDialog v-model="similarVisible" :picture-id="detail?.id ?? 0" kind="space" />
   </div>
 </template>
 

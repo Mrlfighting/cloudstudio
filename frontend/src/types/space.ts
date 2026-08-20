@@ -2,6 +2,7 @@
  * 空间模块类型定义（镜像后端 Pydantic Schema）
  */
 import type { PaginatedResponse } from '@/types/user'
+import type { PictureListItemRead } from '@/types/picture'
 
 export type SpaceLevel = 0 | 1 | 2
 export type SpaceStatus = 'active' | 'banned'
@@ -92,3 +93,8 @@ export interface SpaceUpdatePayload {
 }
 
 export type SpaceListResponse = PaginatedResponse<SpaceListItemRead>
+
+/** 颜色搜索结果项：图片列表项 + 颜色距离（越小越相近，GET /spaces/my/pictures/search-by-color） */
+export interface ColorSearchItem extends PictureListItemRead {
+  color_distance: number
+}

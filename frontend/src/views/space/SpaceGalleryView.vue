@@ -10,12 +10,14 @@ import { getErrorMessage } from '@/api/http'
 import { PICTURE_CATEGORIES, type PictureListItemRead, type PictureSort } from '@/types/picture'
 import SpacePictureCard from '@/components/SpacePictureCard.vue'
 import SpaceUploadDialog from './SpaceUploadDialog.vue'
+import ColorSearchDialog from './ColorSearchDialog.vue'
 
 const router = useRouter()
 
 const loading = ref(false)
 const rows = ref<PictureListItemRead[]>([])
 const uploadVisible = ref(false)
+const colorSearchVisible = ref(false)
 
 const filters = reactive({
   keyword: '',
@@ -71,6 +73,7 @@ onMounted(load)
       <h2 class="page-title">我的空间图册</h2>
       <div class="header-actions">
         <el-button @click="router.push('/spaces')">返回空间</el-button>
+        <el-button :icon="'Brush'" @click="colorSearchVisible = true">按颜色搜索</el-button>
         <el-button type="primary" :icon="'Upload'" @click="uploadVisible = true">上传图片</el-button>
       </div>
     </div>
@@ -125,6 +128,7 @@ onMounted(load)
     </div>
 
     <SpaceUploadDialog v-model="uploadVisible" @success="load" />
+    <ColorSearchDialog v-model="colorSearchVisible" />
   </div>
 </template>
 
