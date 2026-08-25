@@ -233,7 +233,6 @@ class AnalyticsService:
 
     # ------------------------------------------------------------------ 我的空间（用户）
 
-    @cached(key_prefix="analytics:my:overview", ttl=ANALYTICS_TTL)
     async def get_my_overview(self, db: AsyncSession, user_id: int) -> dict[str, Any]:
         """个人空间摘要：数量/限额、容量/容量百分比。"""
         space = await self._get_user_space(db, user_id)
@@ -257,7 +256,6 @@ class AnalyticsService:
             size_usage=round(space.total_size / space.max_size, 4) if space.max_size else 0.0,
         ).model_dump()
 
-    @cached(key_prefix="analytics:my:trend", ttl=ANALYTICS_TTL)
     async def get_my_trend(
         self, db: AsyncSession, user_id: int, granularity: str
     ) -> list[dict[str, Any]]:
@@ -279,7 +277,6 @@ class AnalyticsService:
             for r in rows
         ]
 
-    @cached(key_prefix="analytics:my:top-pictures", ttl=ANALYTICS_TTL)
     async def get_my_top_pictures(
         self, db: AsyncSession, user_id: int, limit: int
     ) -> list[dict[str, Any]]:
@@ -299,7 +296,6 @@ class AnalyticsService:
             for r in rows
         ]
 
-    @cached(key_prefix="analytics:my:category", ttl=ANALYTICS_TTL)
     async def get_my_category(self, db: AsyncSession, user_id: int) -> list[dict[str, Any]]:
         """个人分类分布。"""
         space_id = await self._get_user_space_id(db, user_id)
@@ -328,7 +324,6 @@ class AnalyticsService:
             for r in rows
         ]
 
-    @cached(key_prefix="analytics:my:tags", ttl=ANALYTICS_TTL)
     async def get_my_tags(self, db: AsyncSession, user_id: int, limit: int) -> list[dict[str, Any]]:
         """个人标签分布 TOP N。"""
         space_id = await self._get_user_space_id(db, user_id)
