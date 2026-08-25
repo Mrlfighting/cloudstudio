@@ -7,6 +7,7 @@ from fastcrud import PaginatedListResponse, paginated_response
 
 from ...infrastructure.auth.http_exceptions import HTTPException
 from ...infrastructure.dependencies import AsyncSessionDep, CurrentSuperUserDep, CurrentUserDep
+from ...infrastructure.image_outpainting import CreateTaskResponse, OutpaintingParameters, QueryTaskResponse
 from ...infrastructure.image_search import ImageSearchResponse
 from ..common.utils.error_handler import handle_exception
 from ..pictures.schemas import PictureListItemRead, PictureRead, PictureUpdate
@@ -212,6 +213,53 @@ async def search_similar_space_picture(
         if http_exception:
             raise http_exception
         raise HTTPException(status_code=500, detail="以图搜图失败")
+
+
+# --------------------------------------------------------------------------- 用户：空间图片 AI 扩图
+
+
+@router.post(
+    "/my/pictures/{picture_id}/outpaint",
+    response_model=CreateTaskResponse,
+    summary="AI 扩图：创建扩图任务（登录用户）",
+    description="对空间内图片创建百炼图像画面扩展任务，返回 task_id（供前端轮询查询结果）。",
+)
+async def create_outpainting_task(
+    picture_id: int,
+    params: OutpaintingParameters,
+    db: AsyncSessionDep,
+    current_user: CurrentUserDep,
+    space_service: SpaceServiceDep,
+) -> CreateTaskResponse:
+    """创建扩图任务。"""
+    try:
+        return await space_service.create_outpainting_task(db, current_user, picture_id, params)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="创建扩图任务失败")
+
+
+@router.get(
+    "/my/outpaint/{task_id}",
+    response_model=QueryTaskResponse,
+    summary="AI 扩图：查询扩图任务结果（登录用户，前端轮询）",
+    description="轮询查询扩图任务状态；task_status 为 SUCCEEDED 时返回 output_image_url。",
+)
+async def query_outpainting_task(
+    task_id: str,
+    current_user: CurrentUserDep,
+    space_service: SpaceServiceDep,
+) -> QueryTaskResponse:
+    """查询扩图任务结果。"""
+    try:
+        return await space_service.query_outpainting_task(task_id)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="查询扩图任务失败")
 
 
 @router.patch(

@@ -32,6 +32,8 @@ async function handleLogout() {
           <el-menu-item index="/profile/edit">编辑资料</el-menu-item>
           <el-menu-item index="/pictures">图片库</el-menu-item>
           <el-menu-item index="/spaces">我的空间</el-menu-item>
+          <el-menu-item index="/analytics/my-space">我的空间分析</el-menu-item>
+          <el-menu-item v-if="auth.isAdmin" index="/admin/analytics">分析仪表盘</el-menu-item>
           <el-menu-item v-if="auth.isAdmin" index="/pictures/manage">图片管理</el-menu-item>
           <el-menu-item v-if="auth.isAdmin" index="/spaces/manage">空间管理</el-menu-item>
           <el-menu-item v-if="auth.isAdmin" index="/admin/users">用户管理</el-menu-item>

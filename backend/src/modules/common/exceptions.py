@@ -79,6 +79,12 @@ class SpaceBannedError(DomainError):
     pass
 
 
+class ExternalServiceError(DomainError):
+    """Raised when an external service call (e.g. Bailian outpainting) fails."""
+
+    pass
+
+
 class InsufficientCreditsError(DomainError):
     """Raised when a user doesn't have enough credits for an operation."""
 

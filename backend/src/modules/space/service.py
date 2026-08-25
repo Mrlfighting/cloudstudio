@@ -14,9 +14,18 @@ from starlette.concurrency import run_in_threadpool
 
 from ...infrastructure.color_search import color_distance, extract_primary_color, parse_color
 from ...infrastructure.config.settings import settings
+from ...infrastructure.image_outpainting import (
+    CreateTaskResponse,
+    ImageOutpaintingException,
+    OutpaintingParameters,
+    QueryTaskResponse,
+    create_outpainting_task,
+    query_outpainting_task,
+)
 from ...infrastructure.image_search import ImageSearchResponse, search_image
 from ...infrastructure.logging import get_logger
 from ..common.exceptions import (
+    ExternalServiceError,
     PictureNotFoundError,
     SpaceBannedError,
     SpaceExistsError,
@@ -359,6 +368,33 @@ class SpaceService:
             )
         items.sort(key=lambda item: item.color_distance)
         return items[:limit]
+
+    async def create_outpainting_task(
+        self,
+        db: AsyncSession,
+        current_user: dict[str, Any],
+        picture_id: int,
+        params: OutpaintingParameters,
+    ) -> CreateTaskResponse:
+        """AI 扩图：对空间内图片创建扩图任务（返回 task_id，供前端轮询）。"""
+        picture = await self.get_picture(db, current_user, picture_id)
+        try:
+            result = await create_outpainting_task(picture["url"], params)
+        except ImageOutpaintingException as e:
+            raise ExternalServiceError(f"扩图任务创建失败：{e}") from e
+        if result is None:
+            raise ExternalServiceError("扩图服务未启用或未配置")
+        return result
+
+    async def query_outpainting_task(self, task_id: str) -> QueryTaskResponse:
+        """AI 扩图：查询扩图任务状态与结果（前端轮询）。"""
+        try:
+            result = await query_outpainting_task(task_id)
+        except ImageOutpaintingException as e:
+            raise ExternalServiceError(f"扩图任务查询失败：{e}") from e
+        if result is None:
+            raise ExternalServiceError("扩图服务未启用或未配置")
+        return result
 
     # ------------------------------------------------------------------ 辅助
 

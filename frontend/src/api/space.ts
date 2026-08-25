@@ -19,6 +19,11 @@ import type {
 } from '@/types/picture'
 import type { ImageSearchResponse } from '@/types/search'
 import type { MessageResponse } from '@/types/user'
+import type {
+  CreateTaskResponse,
+  OutpaintingParameters,
+  QueryTaskResponse,
+} from '@/types/outpaint'
 
 export const spaceApi = {
   // ---- 用户：空间 ----
@@ -85,6 +90,18 @@ export const spaceApi = {
     return http
       .get<ColorSearchItem[]>('/spaces/my/pictures/search-by-color', { params })
       .then((r) => r.data)
+  },
+
+  /** AI 扩图：创建扩图任务（提交图片 id + 扩图参数，返回 task_id） */
+  createOutpaintTask(pictureId: number, params: OutpaintingParameters): Promise<CreateTaskResponse> {
+    return http
+      .post<CreateTaskResponse>(`/spaces/my/pictures/${pictureId}/outpaint`, params)
+      .then((r) => r.data)
+  },
+
+  /** AI 扩图：查询扩图任务状态与结果（前端轮询） */
+  queryOutpaintTask(taskId: string): Promise<QueryTaskResponse> {
+    return http.get<QueryTaskResponse>(`/spaces/my/outpaint/${taskId}`).then((r) => r.data)
   },
 
   updatePicture(id: number, payload: PictureUpdatePayload): Promise<MessageResponse> {
