@@ -70,6 +70,18 @@ const router = createRouter({
           meta: { title: '用户管理', requiresAuth: true, requiresAdmin: true },
         },
         {
+          path: 'admin/analytics',
+          name: 'admin-analytics',
+          component: () => import('@/views/admin/AnalyticsDashboardView.vue'),
+          meta: { title: '分析仪表盘', requiresAuth: true, requiresAdmin: true },
+        },
+        {
+          path: 'analytics/my-space',
+          name: 'space-analytics',
+          component: () => import('@/views/space/SpaceAnalyticsView.vue'),
+          meta: { title: '我的空间分析', requiresAuth: true },
+        },
+        {
           path: 'spaces',
           name: 'space-home',
           component: () => import('@/views/space/SpaceHomeView.vue'),
