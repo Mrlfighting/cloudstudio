@@ -11,6 +11,7 @@ from ...infrastructure.auth.http_exceptions import (
 )
 from .exceptions import (
     DomainError,
+    ExternalServiceError,
     InsufficientCreditsError,
     PermissionDeniedError,
     PictureNotFoundError,
@@ -50,4 +51,5 @@ EXCEPTION_MAPPING: dict[type[DomainError], Callable[[str], HTTPException]] = {
     SpaceNotFoundError: lambda message: NotFoundException(detail="空间不存在"),
     SpaceExistsError: lambda message: DuplicateValueException(detail=message or "用户已创建空间"),
     SpaceBannedError: lambda message: ForbiddenException(detail=message or "空间已被封禁"),
+    ExternalServiceError: lambda message: HTTPException(status_code=502, detail=message or "外部服务调用失败"),
 }

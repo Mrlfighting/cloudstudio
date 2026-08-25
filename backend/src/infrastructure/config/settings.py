@@ -445,6 +445,22 @@ class ImageSearchSettings(BaseSettings):
     )
 
 
+class ImageOutpaintingSettings(BaseSettings):
+    """阿里云百炼图像画面扩展（扩图）配置。"""
+
+    IMAGE_OUTPAINTING_ENABLED: bool = config("IMAGE_OUTPAINTING_ENABLED", default=True, cast=bool)
+    IMAGE_OUTPAINTING_API_KEY: str = config("IMAGE_OUTPAINTING_API_KEY", default="")
+    IMAGE_OUTPAINTING_WORKSPACE_ID: str = config("IMAGE_OUTPAINTING_WORKSPACE_ID", default="")
+    IMAGE_OUTPAINTING_REGION: str = config("IMAGE_OUTPAINTING_REGION", default="cn-beijing")
+    IMAGE_OUTPAINTING_TIMEOUT: float = config("IMAGE_OUTPAINTING_TIMEOUT", default=30.0, cast=float)
+    IMAGE_OUTPAINTING_RETRY: int = config("IMAGE_OUTPAINTING_RETRY", default=0, cast=int)
+
+    @property
+    def IMAGE_OUTPAINTING_BASE_URL(self) -> str:
+        """百炼扩图接口基础 URL（含业务空间 ID）。"""
+        return f"https://{self.IMAGE_OUTPAINTING_WORKSPACE_ID}.{self.IMAGE_OUTPAINTING_REGION}.maas.aliyuncs.com"
+
+
 class Settings(
     EnvironmentSettings,
     DatabaseSettings,
@@ -464,6 +480,7 @@ class Settings(
     TaskiqSettings,
     TencentCloudSettings,
     ImageSearchSettings,
+    ImageOutpaintingSettings,
 ):
     """Main settings class that combines all setting categories."""
 

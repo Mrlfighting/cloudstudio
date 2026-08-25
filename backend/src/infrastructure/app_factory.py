@@ -33,6 +33,7 @@ from .config.settings import (
     get_settings,
 )
 from .database.session import create_tables
+from .image_outpainting.initialize import close_image_outpainting, initialize_image_outpainting
 from .image_search.initialize import close_image_search, initialize_image_search
 from .middleware import ClientCacheMiddleware, SecurityHeadersMiddleware
 from .rate_limit.initialize import close_rate_limiter, initialize_rate_limiter
@@ -76,6 +77,9 @@ def lifespan_factory(
             if getattr(settings, "IMAGE_SEARCH_ENABLED", False):
                 initialize_image_search()
 
+            if getattr(settings, "IMAGE_OUTPAINTING_ENABLED", False):
+                initialize_image_outpainting()
+
             await auth.initialize()
 
             initialization_complete.set()
@@ -95,6 +99,8 @@ def lifespan_factory(
                 await close_rate_limiter()
 
             await close_image_search()
+
+            await close_image_outpainting()
 
     return lifespan
 
