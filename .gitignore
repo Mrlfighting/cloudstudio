@@ -162,4 +162,4 @@ CLAUDE.md
 backend/Dockerfile
 
 # 开发交接文档（已合并进 CLAUDE.md，不提交）
-docs/开发交接-20260814.md
+docs/开发交接*.md
