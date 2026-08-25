@@ -4,6 +4,7 @@
  */
 import { ref } from 'vue'
 import type { PictureListItemRead } from '@/types/picture'
+import OutpaintDialog from './OutpaintDialog.vue'
 import ShareDialog from './ShareDialog.vue'
 
 defineProps<{
@@ -11,27 +12,42 @@ defineProps<{
 }>()
 
 const shareVisible = ref(false)
+const outpaintVisible = ref(false)
 </script>
 
 <template>
   <el-card class="pic-card" shadow="hover" :body-style="{ padding: '0' }">
-    <router-link :to="`/spaces/pictures/${item.id}`" class="thumb-link">
-      <el-image
-        class="thumb"
-        :src="item.url"
-        fit="cover"
-        lazy
-        :preview-src-list="[item.url]"
-        preview-teleported
-      >
-        <template #error>
-          <div class="img-error">
-            <el-icon><Picture /></el-icon>
-            <span>加载失败</span>
-          </div>
-        </template>
-      </el-image>
-    </router-link>
+    <div class="thumb-wrap">
+      <router-link :to="`/spaces/pictures/${item.id}`" class="thumb-link">
+        <el-image
+          class="thumb"
+          :src="item.url"
+          fit="cover"
+          lazy
+          :preview-src-list="[item.url]"
+          preview-teleported
+        >
+          <template #error>
+            <div class="img-error">
+              <el-icon><Picture /></el-icon>
+              <span>加载失败</span>
+            </div>
+          </template>
+        </el-image>
+      </router-link>
+
+      <div class="thumb-hover">
+        <el-button
+          size="small"
+          type="primary"
+          plain
+          :icon="'MagicStick'"
+          @click.stop="outpaintVisible = true"
+        >
+          AI 扩图
+        </el-button>
+      </div>
+    </div>
 
     <div class="body">
       <router-link :to="`/spaces/pictures/${item.id}`" class="name">{{ item.name }}</router-link>
@@ -59,6 +75,7 @@ const shareVisible = ref(false)
     </div>
 
     <ShareDialog v-model="shareVisible" :url="item.url" />
+    <OutpaintDialog v-model="outpaintVisible" :picture-id="item.id" :url="item.url" />
   </el-card>
 </template>
 
@@ -71,6 +88,22 @@ const shareVisible = ref(false)
 
 .pic-card:hover {
   transform: translateY(-4px);
+}
+
+.thumb-wrap {
+  position: relative;
+}
+
+.thumb-hover {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.thumb-wrap:hover .thumb-hover {
+  opacity: 1;
 }
 
 .thumb-link {
