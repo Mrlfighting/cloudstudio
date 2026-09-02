@@ -1,21 +1,26 @@
 <script setup lang="ts">
 /**
- * 团队空间图片详情：大图 + 元信息 + 编辑/删除（按角色控制，无下载/扩图/搜图）
+ * 团队空间图片详情：大图 + 元信息 + 编辑/删除 + 协同编辑（缩放/旋转/裁剪实时同步）。
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { teamSpaceApi } from '@/api/teamSpace'
 import { getErrorMessage } from '@/api/http'
 import { useTeamStore } from '@/stores/team'
-import type { PictureRead } from '@/types/picture'
+import { useAuthStore } from '@/stores/auth'
+import type { CropRect, PersistedEditState, PictureEditState, PictureRead } from '@/types/picture'
 import EmptyValue from '@/components/EmptyValue.vue'
 import ShareDialog from '@/components/ShareDialog.vue'
 import PictureEditDialog from '@/components/PictureEditDialog.vue'
+import CollabToolbar from '@/components/CollabToolbar.vue'
+import CollabCropOverlay from '@/components/CollabCropOverlay.vue'
+import { useCollabSocket } from '@/composables/useCollabSocket'
 
 const route = useRoute()
 const router = useRouter()
 const team = useTeamStore()
+const auth = useAuthStore()
 
 const spaceId = computed(() => Number(route.params.id))
 const pictureId = computed(() => Number(route.params.pictureId))
@@ -25,6 +30,46 @@ const notFound = ref(false)
 const detail = ref<PictureRead | null>(null)
 const editVisible = ref(false)
 const shareVisible = ref(false)
+const cropVisible = ref(false)
+
+const {
+  editState,
+  editorUser,
+  isEditing,
+  connect,
+  disconnect,
+  enterEdit,
+  exitEdit,
+  zoomIn,
+  zoomOut,
+  rotateLeft,
+  rotateRight,
+  crop: applyCrop,
+  save: saveEdit,
+} = useCollabSocket(spaceId.value, pictureId.value, auth.user?.id ?? 0, { rotation: 0, zoom: 1.0, crop: null })
+
+function normalizeSaved(es: PersistedEditState | null): PictureEditState {
+  return { rotation: es?.rotation ?? 0, zoom: 1.0, crop: es?.crop ?? null }
+}
+
+function cropClipPath(crop: CropRect, w: number, h: number): string {
+  const top = (crop.y / h) * 100
+  const right = ((w - crop.x - crop.width) / w) * 100
+  const bottom = ((h - crop.y - crop.height) / h) * 100
+  const left = (crop.x / w) * 100
+  return `inset(${top}% ${right}% ${bottom}% ${left}%)`
+}
+
+const imgStyle = computed(() => {
+  const s = editState.value
+  const w = detail.value?.pic_width
+  const h = detail.value?.pic_height
+  return {
+    transform: `rotate(${s.rotation}deg) scale(${s.zoom})`,
+    clipPath: s.crop && w && h ? cropClipPath(s.crop, w, h) : 'none',
+    transition: 'transform 0.15s ease',
+  }
+})
 
 function formatSize(bytes: number | null): string {
   if (bytes === null || bytes === undefined) return '未知'
@@ -37,6 +82,8 @@ async function load() {
   loading.value = true
   try {
     detail.value = await teamSpaceApi.getPicture(spaceId.value, pictureId.value)
+    // 用落库的 edit_state 初始化视图（缩放默认 1.0，不落库）
+    editState.value = normalizeSaved(detail.value.edit_state)
   } catch {
     notFound.value = true
   } finally {
@@ -64,9 +111,18 @@ async function onDelete() {
   }
 }
 
+function onCrop(rect: CropRect) {
+  applyCrop(rect)
+}
+
 onMounted(async () => {
   await team.load(spaceId.value)
-  load()
+  await load()
+  if (team.canWrite) connect()
+})
+
+onBeforeUnmount(() => {
+  disconnect()
 })
 </script>
 
@@ -90,12 +146,19 @@ onMounted(async () => {
       <template v-else>
         <div class="detail-layout">
           <div class="image-panel">
-            <el-image
-              class="main-img"
-              :src="detail.url"
-              fit="contain"
-              :preview-src-list="[detail.url]"
-              preview-teleported
+            <img class="main-img" :src="detail.url" alt="" :style="imgStyle" />
+            <CollabToolbar
+              v-if="team.canWrite"
+              :is-editing="isEditing"
+              :editor-user="editorUser"
+              @enter="enterEdit"
+              @exit="exitEdit"
+              @zoom-in="zoomIn"
+              @zoom-out="zoomOut"
+              @rotate-left="rotateLeft"
+              @rotate-right="rotateRight"
+              @crop="cropVisible = true"
+              @save="saveEdit"
             />
           </div>
 
@@ -149,6 +212,15 @@ onMounted(async () => {
 
     <ShareDialog v-model="shareVisible" :url="detail?.url ?? ''" />
     <PictureEditDialog v-model="editVisible" :picture="detail" kind="team" :space-id="spaceId" @success="load" />
+    <CollabCropOverlay
+      v-if="team.canWrite"
+      v-model="cropVisible"
+      :url="detail?.url ?? ''"
+      :natural-width="detail?.pic_width ?? 1"
+      :natural-height="detail?.pic_height ?? 1"
+      :initial-crop="editState.crop"
+      @crop="onCrop"
+    />
   </div>
 </template>
 
@@ -161,6 +233,7 @@ onMounted(async () => {
 }
 
 .image-panel {
+  position: relative;
   background: #fff;
   border-radius: 10px;
   padding: 16px;
@@ -168,11 +241,13 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .main-img {
-  width: 100%;
+  max-width: 100%;
   max-height: 70vh;
+  display: block;
 }
 
 .info-panel {
