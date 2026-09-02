@@ -20,6 +20,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
+        ws: true, // 代理 WebSocket 升级（图片协同编辑）
       },
     },
   },

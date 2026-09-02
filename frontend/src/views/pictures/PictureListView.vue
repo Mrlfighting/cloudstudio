@@ -9,7 +9,7 @@ import { pictureApi } from '@/api/picture'
 import { getErrorMessage } from '@/api/http'
 import { PICTURE_CATEGORIES, type PictureListItemRead, type PictureSort } from '@/types/picture'
 import PictureCard from '@/components/PictureCard.vue'
-import PictureUploadDialog from './admin/PictureUploadDialog.vue'
+import PictureUploadDialog from '@/components/PictureUploadDialog.vue'
 
 const router = useRouter()
 

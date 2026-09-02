@@ -1,17 +1,25 @@
 <script setup lang="ts">
 /**
- * 空间图片编辑弹窗：仅编辑元信息（tags 传数组，JSON body）
+ * 图片编辑弹窗（通用）：仅编辑元信息（tags 传数组，JSON body）
+ * - kind='picture'：公共图库 / 'space'：私有空间 / 'team'：团队空间（需 spaceId）
  */
 import { reactive, ref, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { pictureApi } from '@/api/picture'
 import { spaceApi } from '@/api/space'
+import { teamSpaceApi } from '@/api/teamSpace'
 import { getErrorMessage } from '@/api/http'
-import { PICTURE_CATEGORIES, type PictureCategory, type PictureListItemRead } from '@/types/picture'
+import { PICTURE_CATEGORIES, type PictureCategory, type PictureKind, type PictureListItemRead } from '@/types/picture'
 
 const visible = defineModel<boolean>({ default: false })
-const props = defineProps<{
-  picture: PictureListItemRead | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    picture: PictureListItemRead | null
+    kind?: PictureKind
+    spaceId?: number
+  }>(),
+  { kind: 'picture' },
+)
 const emit = defineEmits<{
   success: []
 }>()
@@ -42,7 +50,10 @@ watch(visible, async (v) => {
   form.tags = [...props.picture.tags]
   form.introduction = ''
   try {
-    const detail = await spaceApi.getPicture(props.picture.id)
+    let detail
+    if (props.kind === 'space') detail = await spaceApi.getPicture(props.picture.id)
+    else if (props.kind === 'team') detail = await teamSpaceApi.getPicture(props.spaceId!, props.picture.id)
+    else detail = await pictureApi.get(props.picture.id)
     form.introduction = detail.introduction ?? ''
   } catch {
     // 详情加载失败时简介留空，不影响编辑其它字段
@@ -53,15 +64,23 @@ async function handleSubmit() {
   if (!formRef.value || !props.picture) return
   await formRef.value.validate()
 
+  const payload = {
+    name: form.name,
+    introduction: form.introduction || undefined,
+    category: form.category as PictureCategory | undefined,
+    tags: form.tags,
+  }
+
   submitting.value = true
   try {
     // 编辑接口的 tags 是数组（JSON body），与上传接口的 JSON 字符串不同
-    await spaceApi.updatePicture(props.picture.id, {
-      name: form.name,
-      introduction: form.introduction || undefined,
-      category: form.category as PictureCategory | undefined,
-      tags: form.tags,
-    })
+    if (props.kind === 'space') {
+      await spaceApi.updatePicture(props.picture.id, payload)
+    } else if (props.kind === 'team') {
+      await teamSpaceApi.updatePicture(props.spaceId!, props.picture.id, payload)
+    } else {
+      await pictureApi.update(props.picture.id, payload)
+    }
     ElMessage.success('图片信息修改成功')
     emit('success')
     visible.value = false

@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter, File, Form, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from fastcrud import PaginatedListResponse, paginated_response
 
 from ...infrastructure.auth.http_exceptions import HTTPException
@@ -11,8 +11,21 @@ from ...infrastructure.image_outpainting import CreateTaskResponse, OutpaintingP
 from ...infrastructure.image_search import ImageSearchResponse
 from ..common.utils.error_handler import handle_exception
 from ..pictures.schemas import PictureListItemRead, PictureRead, PictureUpdate
-from .dependencies import SpaceServiceDep
-from .schemas import ColorSearchItem, SpaceCreate, SpaceInfoRead, SpaceLevelUpdate, SpaceListRead, SpaceRead, SpaceUpdate
+from .dependencies import SpaceServiceDep, require_team_permission
+from .rbac import DELETE, MANAGE_MEMBERS, MANAGE_SETTINGS, READ, WRITE
+from .schemas import (
+    ColorSearchItem,
+    SpaceCreate,
+    SpaceInfoRead,
+    SpaceLevelUpdate,
+    SpaceListRead,
+    SpaceMemberCreate,
+    SpaceMemberRead,
+    SpaceMemberUpdate,
+    SpaceRead,
+    SpaceUpdate,
+    TeamSpaceListItemRead,
+)
 
 router = APIRouter(tags=["Spaces"])
 
@@ -305,6 +318,319 @@ async def delete_space_picture(
         raise HTTPException(status_code=500, detail="删除空间图片失败")
 
 
+# --------------------------------------------------------------------------- 团队空间
+
+
+@router.post(
+    "/team",
+    status_code=status.HTTP_201_CREATED,
+    response_model=SpaceRead,
+    summary="创建团队空间（登录用户）",
+    description="每个用户最多创建一个团队空间；创建者自动成为团队管理员（Owner）。",
+)
+async def create_team_space(
+    payload: SpaceCreate,
+    db: AsyncSessionDep,
+    current_user: CurrentUserDep,
+    space_service: SpaceServiceDep,
+) -> dict[str, Any]:
+    """创建团队空间。"""
+    try:
+        return await space_service.create_team(db, payload.name, current_user)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="创建团队空间失败")
+
+
+@router.get(
+    "/team/my",
+    response_model=SpaceInfoRead,
+    summary="我的团队空间信息（登录用户）",
+    description="返回自己创建的团队空间基本信息（名称、级别、容量/剩余配额）。",
+)
+async def get_my_team_space(
+    db: AsyncSessionDep,
+    current_user: CurrentUserDep,
+    space_service: SpaceServiceDep,
+) -> dict[str, Any]:
+    """我的团队空间信息。"""
+    try:
+        return await space_service.get_my_team(db, current_user)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="获取团队空间信息失败")
+
+
+@router.get(
+    "/team/joined",
+    response_model=list[TeamSpaceListItemRead],
+    summary="我加入的团队空间列表（登录用户）",
+    description="返回我作为成员（含我创建）加入的所有团队空间及我的角色。",
+)
+async def list_joined_team_spaces(
+    db: AsyncSessionDep,
+    current_user: CurrentUserDep,
+    space_service: SpaceServiceDep,
+) -> list[dict[str, Any]]:
+    """我加入的团队空间列表。"""
+    try:
+        return await space_service.list_joined_teams(db, current_user)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="获取团队列表失败")
+
+
+@router.patch(
+    "/{space_id}/settings",
+    response_model=SpaceRead,
+    dependencies=[Depends(require_team_permission(MANAGE_SETTINGS))],
+    summary="团队空间设置（管理员）",
+    description="修改团队空间名称 / 升级级别（降级超限拒绝，按团队配额）。",
+)
+async def update_team_space_settings(
+    space_id: int,
+    values: SpaceUpdate,
+    db: AsyncSessionDep,
+    space_service: SpaceServiceDep,
+) -> dict[str, Any]:
+    """团队空间设置。"""
+    try:
+        return await space_service.update_team_settings(
+            db, space_id, values.name, int(values.space_level) if values.space_level is not None else None
+        )
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="修改团队空间设置失败")
+
+
+@router.get(
+    "/{space_id}/members",
+    response_model=list[SpaceMemberRead],
+    dependencies=[Depends(require_team_permission(READ))],
+    summary="团队成员列表（成员可看）",
+    description="查看团队空间内所有成员及其角色。",
+)
+async def list_team_members(
+    space_id: int,
+    db: AsyncSessionDep,
+    space_service: SpaceServiceDep,
+) -> list[dict[str, Any]]:
+    """团队成员列表。"""
+    try:
+        return await space_service.list_members(db, space_id)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="获取成员列表失败")
+
+
+@router.post(
+    "/{space_id}/members",
+    status_code=status.HTTP_201_CREATED,
+    response_model=SpaceMemberRead,
+    dependencies=[Depends(require_team_permission(MANAGE_MEMBERS))],
+    summary="邀请成员（管理员）",
+    description="按用户 ID 邀请已有平台用户加入团队空间，并设定角色。",
+)
+async def add_team_member(
+    space_id: int,
+    payload: SpaceMemberCreate,
+    db: AsyncSessionDep,
+    space_service: SpaceServiceDep,
+) -> dict[str, Any]:
+    """邀请成员。"""
+    try:
+        return await space_service.add_member(db, space_id, payload.user_id, payload.space_role)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="邀请成员失败")
+
+
+@router.patch(
+    "/{space_id}/members/{user_id}",
+    response_model=SpaceMemberRead,
+    dependencies=[Depends(require_team_permission(MANAGE_MEMBERS))],
+    summary="设置成员角色（管理员）",
+)
+async def update_team_member_role(
+    space_id: int,
+    user_id: int,
+    payload: SpaceMemberUpdate,
+    db: AsyncSessionDep,
+    space_service: SpaceServiceDep,
+) -> dict[str, Any]:
+    """设置成员角色。"""
+    try:
+        return await space_service.update_member_role(db, space_id, user_id, payload.space_role)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="设置成员角色失败")
+
+
+@router.delete(
+    "/{space_id}/members/{user_id}",
+    dependencies=[Depends(require_team_permission(MANAGE_MEMBERS))],
+    summary="移除成员（管理员）",
+    description="将成员移出团队空间；创建者不可被移除。",
+)
+async def remove_team_member(
+    space_id: int,
+    user_id: int,
+    db: AsyncSessionDep,
+    space_service: SpaceServiceDep,
+) -> dict[str, str]:
+    """移除成员。"""
+    try:
+        await space_service.remove_member(db, space_id, user_id)
+        return {"message": "成员已移除"}
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="移除成员失败")
+
+
+@router.post(
+    "/{space_id}/pictures",
+    status_code=status.HTTP_201_CREATED,
+    response_model=PictureRead,
+    dependencies=[Depends(require_team_permission(WRITE))],
+    summary="上传图片到团队空间（编辑者/管理员）",
+)
+async def upload_team_picture(
+    space_id: int,
+    db: AsyncSessionDep,
+    current_user: CurrentUserDep,
+    space_service: SpaceServiceDep,
+    file: UploadFile = File(...),
+    name: str = Form(..., min_length=1, max_length=128),
+    introduction: str | None = Form(None, max_length=512),
+    category: str = Form(...),
+    tags: str = Form("[]"),
+) -> dict[str, Any]:
+    """上传图片到团队空间。"""
+    try:
+        return await space_service.upload_team_picture(
+            db=db, current_user=current_user, space_id=space_id, file=file, name=name,
+            introduction=introduction, category=category, tags_str=tags,
+        )
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="上传团队空间图片失败")
+
+
+@router.get(
+    "/{space_id}/pictures",
+    response_model=PaginatedListResponse[PictureListItemRead],
+    dependencies=[Depends(require_team_permission(READ))],
+    summary="团队空间图片列表（成员可看）",
+)
+async def list_team_pictures(
+    space_id: int,
+    db: AsyncSessionDep,
+    space_service: SpaceServiceDep,
+    page: int = Query(1, ge=1),
+    items_per_page: int = Query(10, ge=1, le=100),
+    category: str | None = Query(None),
+    keyword: str | None = Query(None),
+    sort: str = Query("time", pattern="^(time|popularity)$"),
+) -> dict[str, Any]:
+    """团队空间图片列表。"""
+    try:
+        data = await space_service.list_team_pictures(
+            db, space_id, page=page, items_per_page=items_per_page,
+            category=category, keyword=keyword, sort=sort,
+        )
+        return paginated_response(crud_data=data, page=page, items_per_page=items_per_page)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="获取团队空间图片列表失败")
+
+
+@router.get(
+    "/{space_id}/pictures/{picture_id}",
+    response_model=PictureRead,
+    dependencies=[Depends(require_team_permission(READ))],
+    summary="团队空间图片详情（成员可看）",
+)
+async def get_team_picture(
+    space_id: int,
+    picture_id: int,
+    db: AsyncSessionDep,
+    space_service: SpaceServiceDep,
+) -> dict[str, Any]:
+    """团队空间图片详情。"""
+    try:
+        return await space_service.get_team_picture(db, space_id, picture_id)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="获取团队空间图片详情失败")
+
+
+@router.patch(
+    "/{space_id}/pictures/{picture_id}",
+    dependencies=[Depends(require_team_permission(WRITE))],
+    summary="编辑团队空间图片信息（编辑者/管理员）",
+)
+async def update_team_picture(
+    space_id: int,
+    picture_id: int,
+    values: PictureUpdate,
+    db: AsyncSessionDep,
+    space_service: SpaceServiceDep,
+) -> dict[str, str]:
+    """编辑团队空间图片元信息。"""
+    try:
+        await space_service.update_team_picture(db, space_id, picture_id, values)
+        return {"message": "图片信息修改成功"}
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="修改团队空间图片失败")
+
+
+@router.delete(
+    "/{space_id}/pictures/{picture_id}",
+    dependencies=[Depends(require_team_permission(DELETE))],
+    summary="删除团队空间图片（编辑者/管理员）",
+)
+async def delete_team_picture(
+    space_id: int,
+    picture_id: int,
+    db: AsyncSessionDep,
+    space_service: SpaceServiceDep,
+) -> dict[str, str]:
+    """删除团队空间图片（回退配额）。"""
+    try:
+        await space_service.delete_team_picture(db, space_id, picture_id)
+        return {"message": "图片已删除"}
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="删除团队空间图片失败")
+
+
 # --------------------------------------------------------------------------- 管理员：空间
 
 
@@ -323,12 +649,13 @@ async def list_spaces(
     name: str | None = Query(None),
     user_id: int | None = Query(None),
     space_level: int | None = Query(None, ge=0, le=2),
+    space_type: int | None = Query(None, ge=0, le=1),
 ) -> dict[str, Any]:
     """空间列表（管理员）。"""
     try:
         data = await space_service.list_admin(
             db, page=page, items_per_page=items_per_page,
-            name=name, user_id=user_id, space_level=space_level,
+            name=name, user_id=user_id, space_level=space_level, space_type=space_type,
         )
         return paginated_response(crud_data=data, page=page, items_per_page=items_per_page)
     except Exception as e:

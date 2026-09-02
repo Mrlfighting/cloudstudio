@@ -27,9 +27,12 @@ from ...infrastructure.logging import get_logger
 from ..common.exceptions import (
     ExternalServiceError,
     PictureNotFoundError,
+    ResourceExistsError,
     SpaceBannedError,
     SpaceExistsError,
     SpaceNotFoundError,
+    TeamMemberNotFoundError,
+    UserNotFoundError,
     ValidationError,
 )
 from ..pictures.crud import crud_pictures
@@ -43,11 +46,21 @@ from ..pictures.service import (
     _get_cos_client,
     _parse_tags,
 )
-from .constants import SPACE_LEVEL_LIMITS
-from .crud import crud_spaces
-from .enums import SpaceLevel, SpaceStatus
-from .models import Space
-from .schemas import ColorSearchItem, SpaceCreateInternal, SpaceListRead, SpaceRead
+from ..user.crud import crud_users
+from ..user.models import User
+from .constants import SPACE_LEVEL_LIMITS, TEAM_SPACE_LEVEL_LIMITS
+from .crud import crud_space_users, crud_spaces
+from .enums import SpaceLevel, SpaceRole, SpaceStatus, SpaceType
+from .models import Space, SpaceUser
+from .schemas import (
+    ColorSearchItem,
+    SpaceCreateInternal,
+    SpaceListRead,
+    SpaceMemberRead,
+    SpaceRead,
+    SpaceUserCreateInternal,
+    TeamSpaceListItemRead,
+)
 
 logger = get_logger()
 
@@ -70,7 +83,9 @@ class SpaceService:
         user_id = current_user["id"]
         lock = _get_space_lock(user_id)
         async with lock:
-            existing = await crud_spaces.get(db=db, user_id=user_id, is_deleted=False)
+            existing = await crud_spaces.get(
+                db=db, user_id=user_id, space_type=SpaceType.PRIVATE, is_deleted=False
+            )
             if existing:
                 raise SpaceExistsError("用户已创建私有空间，每个用户只能创建一个")
 
@@ -122,8 +137,9 @@ class SpaceService:
         name: str | None = None,
         user_id: int | None = None,
         space_level: int | None = None,
+        space_type: int | None = None,
     ) -> dict[str, Any]:
-        """管理员：分页列表，按名称/所属用户/级别筛选，创建时间倒序。"""
+        """管理员：分页列表，按名称/所属用户/级别/类型筛选，创建时间倒序。"""
         conditions = [Space.is_deleted == False]  # noqa: E712
         if name:
             conditions.append(Space.name.ilike(f"%{name}%"))
@@ -131,6 +147,8 @@ class SpaceService:
             conditions.append(Space.user_id == user_id)
         if space_level is not None:
             conditions.append(Space.space_level == space_level)
+        if space_type is not None:
+            conditions.append(Space.space_type == space_type)
 
         count_stmt = select(func.count()).select_from(Space).where(*conditions)
         total = (await db.execute(count_stmt)).scalar() or 0
@@ -198,7 +216,20 @@ class SpaceService:
         """空间内上传图片（不审核，直接 approved；软配额不预先阻断）。"""
         space = await self._get_user_space(db, current_user["id"])
         self._check_active(space)
+        return await self._upload_picture_to_space(db, current_user, space, file, name, introduction, category, tags_str)
 
+    async def _upload_picture_to_space(
+        self,
+        db: AsyncSession,
+        current_user: dict[str, Any],
+        space: Space,
+        file: UploadFile,
+        name: str,
+        introduction: str | None,
+        category: str,
+        tags_str: str,
+    ) -> dict[str, Any]:
+        """上传图片到指定空间（私有/团队共用），返回图片 dict。"""
         data = await file.read()
         if not data:
             raise ValidationError("图片文件为空")
@@ -274,6 +305,22 @@ class SpaceService:
     ) -> dict[str, Any]:
         """空间图片列表。"""
         space = await self._get_user_space(db, current_user["id"])
+        return await self._list_pictures_in_space(
+            db, space, page=page, items_per_page=items_per_page, category=category, keyword=keyword, sort=sort
+        )
+
+    async def _list_pictures_in_space(
+        self,
+        db: AsyncSession,
+        space: Space,
+        *,
+        page: int,
+        items_per_page: int,
+        category: str | None,
+        keyword: str | None,
+        sort: str,
+    ) -> dict[str, Any]:
+        """查询指定空间的图片列表（私有/团队共用）。"""
         conditions = [Picture.is_deleted == False, Picture.space_id == space.id]  # noqa: E712
         if category:
             conditions.append(Picture.category == category)
@@ -396,15 +443,293 @@ class SpaceService:
             raise ExternalServiceError("扩图服务未启用或未配置")
         return result
 
+    # ------------------------------------------------------------------ 团队空间
+
+    async def create_team(self, db: AsyncSession, name: str, current_user: dict[str, Any]) -> dict[str, Any]:
+        """创建团队空间（每用户一个，本地锁 + 事务防并发；创建者自动成为管理员）。"""
+        user_id = current_user["id"]
+        lock = _get_space_lock(user_id)
+        async with lock:
+            existing = await crud_spaces.get(db=db, user_id=user_id, space_type=SpaceType.TEAM, is_deleted=False)
+            if existing:
+                raise SpaceExistsError("用户已创建团队空间，每个用户只能创建一个团队空间")
+
+            limits = TEAM_SPACE_LEVEL_LIMITS[SpaceLevel.NORMAL]
+            internal = SpaceCreateInternal(
+                name=name,
+                space_type=SpaceType.TEAM,
+                space_level=SpaceLevel.NORMAL,
+                max_size=limits["max_size"],
+                max_count=limits["max_count"],
+                user_id=user_id,
+                status=SpaceStatus.ACTIVE.value,
+            )
+            created = await crud_spaces.create(db=db, object=internal, schema_to_select=SpaceRead)
+            if not created:
+                raise ValidationError("创建团队空间失败")
+
+            # 创建者自动成为团队管理员（Owner）
+            await crud_space_users.create(
+                db=db,
+                object=SpaceUserCreateInternal(
+                    space_id=created["id"], user_id=user_id, space_role=SpaceRole.ADMIN.value
+                ),
+            )
+            return created
+
+    async def get_my_team(self, db: AsyncSession, current_user: dict[str, Any]) -> dict[str, Any]:
+        """我创建的团队空间信息（含剩余配额）。"""
+        space = await self._get_user_team_space(db, current_user["id"])
+        return self._space_info(space)
+
+    async def list_joined_teams(self, db: AsyncSession, current_user: dict[str, Any]) -> list[dict[str, Any]]:
+        """我加入（含我创建）的团队空间列表，含我的角色。"""
+        stmt = (
+            select(
+                Space.id,
+                Space.name,
+                SpaceUser.space_role,
+                Space.space_level,
+                Space.total_count,
+                Space.total_size,
+                Space.max_count,
+                Space.max_size,
+                Space.created_at,
+            )
+            .join(SpaceUser, SpaceUser.space_id == Space.id)
+            .where(
+                SpaceUser.user_id == current_user["id"],
+                Space.space_type == SpaceType.TEAM,
+                Space.is_deleted == False,  # noqa: E712
+            )
+            .order_by(Space.created_at.desc())
+        )
+        rows = (await db.execute(stmt)).all()
+        return [
+            TeamSpaceListItemRead(
+                id=r[0],
+                name=r[1],
+                space_role=r[2],
+                space_level=r[3],
+                total_count=r[4],
+                total_size=r[5],
+                max_count=r[6],
+                max_size=r[7],
+                created_at=r[8],
+            ).model_dump()
+            for r in rows
+        ]
+
+    async def update_team_settings(
+        self, db: AsyncSession, space_id: int, name: str | None, space_level: int | None
+    ) -> dict[str, Any]:
+        """团队空间设置（管理员）：改名 / 升级级别（降级超限拒绝，按团队配额）。"""
+        space = await self._get_team_space(db, space_id)
+        update_dict: dict[str, Any] = {}
+        if name is not None:
+            update_dict["name"] = name
+        if space_level is not None:
+            target = int(space_level)
+            limits = TEAM_SPACE_LEVEL_LIMITS[target]
+            if space.total_size > limits["max_size"] or space.total_count > limits["max_count"]:
+                raise ValidationError("当前空间用量已超过目标级别上限，无法降级")
+            update_dict["space_level"] = target
+            update_dict["max_size"] = limits["max_size"]
+            update_dict["max_count"] = limits["max_count"]
+        if update_dict:
+            await crud_spaces.update(db=db, object=update_dict, id=space_id)
+        return SpaceRead.model_validate(await self._get_team_space(db, space_id)).model_dump()
+
+    async def add_member(
+        self, db: AsyncSession, space_id: int, user_id: int, space_role: SpaceRole
+    ) -> dict[str, Any]:
+        """邀请成员（管理员）：按用户 id 直接加入并设定角色。"""
+        await self._get_team_space(db, space_id)
+        target = await crud_users.get(db=db, id=user_id, is_deleted=False)
+        if not target:
+            raise UserNotFoundError("目标用户不存在")
+        existing = await crud_space_users.get(db=db, space_id=space_id, user_id=user_id)
+        if existing:
+            raise ResourceExistsError("该用户已是团队成员")
+        await crud_space_users.create(
+            db=db,
+            object=SpaceUserCreateInternal(space_id=space_id, user_id=user_id, space_role=space_role.value),
+        )
+        return await self._get_member_read(db, space_id, user_id)
+
+    async def list_members(self, db: AsyncSession, space_id: int) -> list[dict[str, Any]]:
+        """成员列表（任意成员可看）。"""
+        await self._get_team_space(db, space_id)
+        stmt = (
+            select(SpaceUser, User.username, User.name)
+            .join(User, User.id == SpaceUser.user_id)
+            .where(SpaceUser.space_id == space_id)
+            .order_by(SpaceUser.created_at.asc())
+        )
+        rows = (await db.execute(stmt)).all()
+        return [
+            SpaceMemberRead(
+                user_id=member.user_id,
+                username=username,
+                name=name,
+                space_role=member.space_role,
+                created_at=member.created_at,
+            ).model_dump()
+            for member, username, name in rows
+        ]
+
+    async def remove_member(self, db: AsyncSession, space_id: int, user_id: int) -> None:
+        """移除成员（管理员）；禁止移除创建者。"""
+        space = await self._get_team_space(db, space_id)
+        if user_id == space.user_id:
+            raise ValidationError("不能移除团队空间创建者")
+        member = await crud_space_users.get(db=db, space_id=space_id, user_id=user_id)
+        if not member:
+            raise TeamMemberNotFoundError("该用户不是团队成员")
+        await crud_space_users.delete(db=db, id=member["id"])
+
+    async def update_member_role(
+        self, db: AsyncSession, space_id: int, user_id: int, space_role: SpaceRole
+    ) -> dict[str, Any]:
+        """设置成员角色（管理员）；禁止修改创建者角色。"""
+        space = await self._get_team_space(db, space_id)
+        if user_id == space.user_id:
+            raise ValidationError("不能修改团队空间创建者的角色")
+        member = await crud_space_users.get(db=db, space_id=space_id, user_id=user_id)
+        if not member:
+            raise TeamMemberNotFoundError("该用户不是团队成员")
+        await crud_space_users.update(db=db, object={"space_role": space_role.value}, id=member["id"])
+        return await self._get_member_read(db, space_id, user_id)
+
+    async def upload_team_picture(
+        self,
+        db: AsyncSession,
+        current_user: dict[str, Any],
+        space_id: int,
+        file: UploadFile,
+        name: str,
+        introduction: str | None,
+        category: str,
+        tags_str: str,
+    ) -> dict[str, Any]:
+        """团队空间上传图片（不审核直接 approved；上传者作为图片 user_id）。"""
+        space = await self._get_team_space(db, space_id)
+        self._check_active(space)
+        return await self._upload_picture_to_space(db, current_user, space, file, name, introduction, category, tags_str)
+
+    async def list_team_pictures(
+        self,
+        db: AsyncSession,
+        space_id: int,
+        *,
+        page: int = 1,
+        items_per_page: int = 10,
+        category: str | None = None,
+        keyword: str | None = None,
+        sort: str = "time",
+    ) -> dict[str, Any]:
+        """团队空间图片列表。"""
+        space = await self._get_team_space(db, space_id)
+        return await self._list_pictures_in_space(
+            db, space, page=page, items_per_page=items_per_page, category=category, keyword=keyword, sort=sort
+        )
+
+    async def get_team_picture(self, db: AsyncSession, space_id: int, picture_id: int) -> dict[str, Any]:
+        """团队空间图片详情。"""
+        space = await self._get_team_space(db, space_id)
+        picture = await crud_pictures.get(
+            db=db, schema_to_select=PictureRead, id=picture_id, space_id=space.id, is_deleted=False
+        )
+        if not picture:
+            raise PictureNotFoundError(f"图片 {picture_id} 不存在")
+        return picture
+
+    async def update_team_picture(
+        self, db: AsyncSession, space_id: int, picture_id: int, data: PictureUpdate
+    ) -> dict[str, Any]:
+        """编辑团队空间图片元信息。"""
+        space = await self._get_team_space(db, space_id)
+        existing = await crud_pictures.get(db=db, id=picture_id, space_id=space.id, is_deleted=False)
+        if not existing:
+            raise PictureNotFoundError(f"图片 {picture_id} 不存在")
+        update_dict = data.model_dump(exclude_unset=True)
+        if "tags" in update_dict and update_dict["tags"] is None:
+            update_dict["tags"] = []
+        await crud_pictures.update(db=db, object=update_dict, id=picture_id)
+        return existing
+
+    async def delete_team_picture(self, db: AsyncSession, space_id: int, picture_id: int) -> None:
+        """删除团队空间图片（回退配额）。"""
+        space = await self._get_team_space(db, space_id)
+        picture = await crud_pictures.get(db=db, id=picture_id, space_id=space.id, is_deleted=False)
+        if not picture:
+            raise PictureNotFoundError(f"图片 {picture_id} 不存在")
+        await crud_pictures.delete(db=db, id=picture_id)
+        await self._add_quota(db, space.id, -(picture.get("pic_size") or 0), -1)
+
+    async def save_picture_edit_state(self, db: AsyncSession, picture_id: int, edit_state: dict[str, Any]) -> None:
+        """保存协同编辑参数（非破坏性，覆盖式，不含缩放）。"""
+        picture = await crud_pictures.get(db=db, id=picture_id, is_deleted=False)
+        if not picture:
+            raise PictureNotFoundError(f"图片 {picture_id} 不存在")
+        await crud_pictures.update(db=db, object={"edit_state": edit_state}, id=picture_id)
+
     # ------------------------------------------------------------------ 辅助
 
     async def _get_user_space(self, db: AsyncSession, user_id: int) -> Space:
-        """获取用户 active 空间（ORM 对象），不存在抛 SpaceNotFoundError。"""
-        stmt = select(Space).where(Space.user_id == user_id, Space.is_deleted == False)  # noqa: E712
+        """获取用户 active 私有空间（ORM 对象），不存在抛 SpaceNotFoundError。"""
+        stmt = select(Space).where(
+            Space.user_id == user_id,
+            Space.space_type == SpaceType.PRIVATE,
+            Space.is_deleted == False,  # noqa: E712
+        )
         space = (await db.execute(stmt)).scalar_one_or_none()
         if space is None:
             raise SpaceNotFoundError("用户尚未创建空间")
         return space
+
+    async def _get_team_space(self, db: AsyncSession, space_id: int) -> Space:
+        """按 id 获取 active 团队空间（ORM 对象），不存在抛 SpaceNotFoundError。"""
+        stmt = select(Space).where(
+            Space.id == space_id,
+            Space.space_type == SpaceType.TEAM,
+            Space.is_deleted == False,  # noqa: E712
+        )
+        space = (await db.execute(stmt)).scalar_one_or_none()
+        if space is None:
+            raise SpaceNotFoundError("团队空间不存在")
+        return space
+
+    async def _get_user_team_space(self, db: AsyncSession, user_id: int) -> Space:
+        """获取用户创建的 active 团队空间（ORM 对象），不存在抛 SpaceNotFoundError。"""
+        stmt = select(Space).where(
+            Space.user_id == user_id,
+            Space.space_type == SpaceType.TEAM,
+            Space.is_deleted == False,  # noqa: E712
+        )
+        space = (await db.execute(stmt)).scalar_one_or_none()
+        if space is None:
+            raise SpaceNotFoundError("用户尚未创建团队空间")
+        return space
+
+    async def _get_member_read(self, db: AsyncSession, space_id: int, user_id: int) -> dict[str, Any]:
+        """查询成员详情（join user），不存在抛 TeamMemberNotFoundError。"""
+        stmt = (
+            select(SpaceUser, User.username, User.name)
+            .join(User, User.id == SpaceUser.user_id)
+            .where(SpaceUser.space_id == space_id, SpaceUser.user_id == user_id)
+        )
+        row = (await db.execute(stmt)).one_or_none()
+        if row is None:
+            raise TeamMemberNotFoundError("该用户不是团队成员")
+        member, username, name = row
+        return SpaceMemberRead(
+            user_id=member.user_id,
+            username=username,
+            name=name,
+            space_role=member.space_role,
+            created_at=member.created_at,
+        ).model_dump()
 
     async def _get_space_or_404(self, db: AsyncSession, space_id: int) -> Space:
         """按 id 获取 active 空间（ORM 对象），不存在抛 SpaceNotFoundError。"""
@@ -424,6 +749,7 @@ class SpaceService:
         return {
             "id": space.id,
             "name": space.name,
+            "space_type": space.space_type,
             "space_level": space.space_level,
             "max_size": space.max_size,
             "max_count": space.max_count,

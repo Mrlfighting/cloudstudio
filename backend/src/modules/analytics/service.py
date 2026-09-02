@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...infrastructure.cache.method_cache import cached
 from ..pictures.enums import PictureStatus
 from ..pictures.models import Picture
+from ..space.enums import SpaceType
 from ..space.models import Space
 from ..user.models import User
 from .cache import ANALYTICS_TTL
@@ -183,7 +184,7 @@ class AnalyticsService:
                 func.coalesce(func.avg(Space.total_count), 0),
             )
             .select_from(Space)
-            .where(Space.is_deleted == False)  # noqa: E712
+            .where(Space.is_deleted == False, Space.space_type == SpaceType.PRIVATE)  # noqa: E712
         )
         row = (await db.execute(stmt)).one()
         total_capacity = row[1]
@@ -213,7 +214,7 @@ class AnalyticsService:
                 User.username,
             )
             .join(User, User.id == Space.user_id)
-            .where(Space.is_deleted == False)  # noqa: E712
+            .where(Space.is_deleted == False, Space.space_type == SpaceType.PRIVATE)  # noqa: E712
             .order_by(order_col)
             .limit(limit)
         )
@@ -344,11 +345,19 @@ class AnalyticsService:
     # ------------------------------------------------------------------ 辅助
 
     async def _get_user_space(self, db: AsyncSession, user_id: int) -> Space | None:
-        """取当前用户 active 空间（ORM 对象），无则返回 None。"""
-        stmt = select(Space).where(Space.user_id == user_id, Space.is_deleted == False)  # noqa: E712
+        """取当前用户 active 私有空间（ORM 对象），无则返回 None。"""
+        stmt = select(Space).where(
+            Space.user_id == user_id,
+            Space.space_type == SpaceType.PRIVATE,
+            Space.is_deleted == False,  # noqa: E712
+        )
         return (await db.execute(stmt)).scalar_one_or_none()
 
     async def _get_user_space_id(self, db: AsyncSession, user_id: int) -> int | None:
-        """取当前用户 active 空间 id，无则返回 None。"""
-        stmt = select(Space.id).where(Space.user_id == user_id, Space.is_deleted == False)  # noqa: E712
+        """取当前用户 active 私有空间 id，无则返回 None。"""
+        stmt = select(Space.id).where(
+            Space.user_id == user_id,
+            Space.space_type == SpaceType.PRIVATE,
+            Space.is_deleted == False,  # noqa: E712
+        )
         return (await db.execute(stmt)).scalar_one_or_none()

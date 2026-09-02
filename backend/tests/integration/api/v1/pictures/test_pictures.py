@@ -25,6 +25,7 @@ async def _create_picture(
     tags: list[str] | None = None,
     download_count: int = 0,
     introduction: str = "简介",
+    primary_color: int | None = None,
 ) -> Picture:
     """直接向测试库插入一条图片记录。"""
     pic = Picture(
@@ -39,6 +40,7 @@ async def _create_picture(
         pic_scale=2.0,
         pic_format="JPEG",
         color_mode="RGB",
+        primary_color=primary_color,
         user_id=user_id,
         status=status,
         download_count=download_count,

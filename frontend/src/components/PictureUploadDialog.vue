@@ -1,18 +1,36 @@
 <script setup lang="ts">
 /**
- * 空间图片上传弹窗：文件 + 元信息（FormData 提交，tags 序列化为 JSON 字符串）
+ * 图片上传弹窗（通用）：文件 + 元信息（FormData 提交，tags 序列化为 JSON 字符串）
+ * - kind='picture'：公共图库（上传后待审核）
+ * - kind='space'：私有空间（直接 approved）
+ * - kind='team'：团队空间（直接 approved）
  */
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { ElMessage, type FormInstance, type FormRules, type UploadFile } from 'element-plus'
+import { pictureApi } from '@/api/picture'
 import { spaceApi } from '@/api/space'
+import { teamSpaceApi } from '@/api/teamSpace'
 import { getErrorMessage } from '@/api/http'
-import { PICTURE_CATEGORIES } from '@/types/picture'
+import { PICTURE_CATEGORIES, type PictureKind } from '@/types/picture'
 import ImageCropper from '@/components/ImageCropper.vue'
 
 const visible = defineModel<boolean>({ default: false })
+const props = withDefaults(
+  defineProps<{
+    kind?: PictureKind
+    spaceId?: number
+  }>(),
+  { kind: 'picture' },
+)
 const emit = defineEmits<{
   success: []
 }>()
+
+const title = computed(() => {
+  if (props.kind === 'space') return '上传图片到空间'
+  if (props.kind === 'team') return '上传图片到团队空间'
+  return '上传图片'
+})
 
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
@@ -93,8 +111,16 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
-    await spaceApi.uploadPicture(fd)
-    ElMessage.success('上传成功')
+    if (props.kind === 'space') {
+      await spaceApi.uploadPicture(fd)
+      ElMessage.success('上传成功')
+    } else if (props.kind === 'team') {
+      await teamSpaceApi.uploadPicture(props.spaceId!, fd)
+      ElMessage.success('上传成功')
+    } else {
+      await pictureApi.upload(fd)
+      ElMessage.success('上传成功，等待审核')
+    }
     emit('success')
     resetForm()
     visible.value = false
@@ -117,7 +143,7 @@ function resetForm() {
 </script>
 
 <template>
-  <el-dialog v-model="visible" title="上传图片到空间" width="560px" @closed="resetForm">
+  <el-dialog v-model="visible" :title="title" width="560px" @closed="resetForm">
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
       <el-form-item label="图片文件" required>
         <el-upload

@@ -12,8 +12,8 @@ import {
   type PictureSort,
   type PictureStatus,
 } from '@/types/picture'
-import PictureUploadDialog from './PictureUploadDialog.vue'
-import PictureEditDialog from './PictureEditDialog.vue'
+import PictureUploadDialog from '@/components/PictureUploadDialog.vue'
+import PictureEditDialog from '@/components/PictureEditDialog.vue'
 import EmptyValue from '@/components/EmptyValue.vue'
 
 const loading = ref(false)
@@ -282,8 +282,8 @@ onMounted(load)
       </div>
     </el-card>
 
-    <PictureUploadDialog v-model="uploadVisible" @success="load" />
-    <PictureEditDialog v-model="editVisible" :picture="editing" @success="load" />
+    <PictureUploadDialog v-model="uploadVisible" kind="picture" @success="load" />
+    <PictureEditDialog v-model="editVisible" :picture="editing" kind="picture" @success="load" />
   </div>
 </template>
 
