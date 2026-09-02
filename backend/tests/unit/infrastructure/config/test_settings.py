@@ -102,7 +102,8 @@ class TestTaskiqSettings:
         assert settings.TASKIQ_REDIS_HOST == "localhost"
         assert settings.TASKIQ_REDIS_PORT == 6379
         assert settings.TASKIQ_REDIS_DB == 3
-        assert settings.TASKIQ_REDIS_PASSWORD is None
+        # .env 可能以空串形式提供（TASKIQ_REDIS_PASSWORD=），与 None 同为「无密码」
+        assert settings.TASKIQ_REDIS_PASSWORD in (None, "")
         assert settings.TASKIQ_WORKER_CONCURRENCY == 2
         assert settings.TASKIQ_MAX_TASKS_PER_WORKER == 1000
 

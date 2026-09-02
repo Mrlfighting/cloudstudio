@@ -10,6 +10,9 @@ os.environ.setdefault("SESSION_SECURE_COOKIES", "false")
 os.environ.setdefault("SECRET_KEY", "test_secret_key_for_tests")
 os.environ.setdefault("SQLITE_URI", ":memory:")
 os.environ.setdefault("SQLITE_ASYNC_PREFIX", "sqlite+aiosqlite:///")
+# 覆盖根目录 .env 里为 Docker 容器名设置的 redis 主机名（本地测试需 localhost；
+# os.environ 优先级高于 .env，故 setdefault 生效）
+os.environ.setdefault("TASKIQ_REDIS_HOST", "localhost")
 
 # Disable the testcontainers Ryuk reaper. Under `pytest -n auto`, each xdist worker
 # is a separate process that spins up its own Ryuk container, and Docker Desktop
