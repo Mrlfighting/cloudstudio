@@ -32,6 +32,7 @@ export function formatBytes(bytes: number | null | undefined): string {
 export interface SpaceRead {
   id: number
   name: string
+  space_type: number
   space_level: SpaceLevel
   max_size: number
   max_count: number
@@ -47,6 +48,7 @@ export interface SpaceRead {
 export interface SpaceListItemRead {
   id: number
   name: string
+  space_type: number
   space_level: SpaceLevel
   max_size: number
   max_count: number
@@ -61,6 +63,7 @@ export interface SpaceListItemRead {
 export interface SpaceInfoRead {
   id: number
   name: string
+  space_type: number
   space_level: SpaceLevel
   max_size: number
   max_count: number

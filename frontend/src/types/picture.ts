@@ -6,6 +6,9 @@ import type { PaginatedResponse } from '@/types/user'
 export type PictureStatus = 'pending' | 'approved' | 'rejected'
 export type PictureSort = 'time' | 'popularity'
 
+/** 图片所属场景：公共图库 / 私有空间 / 团队空间（用于图片卡片/上传/编辑弹窗多态） */
+export type PictureKind = 'picture' | 'space' | 'team'
+
 /** 预置分类（与后端 PictureCategory 完全一致） */
 export const PICTURE_CATEGORIES = ['风景', '人物', '动物', '建筑', '美食', '科技', '插画', '其他'] as const
 export type PictureCategory = (typeof PICTURE_CATEGORIES)[number]

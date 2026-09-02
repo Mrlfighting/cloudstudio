@@ -12,7 +12,7 @@ import EmptyValue from '@/components/EmptyValue.vue'
 import OutpaintDialog from '@/components/OutpaintDialog.vue'
 import SimilarSearchDialog from '@/components/SimilarSearchDialog.vue'
 import ShareDialog from '@/components/ShareDialog.vue'
-import SpacePictureEditDialog from './SpacePictureEditDialog.vue'
+import PictureEditDialog from '@/components/PictureEditDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -145,7 +145,7 @@ onMounted(load)
       </div>
     </template>
 
-    <SpacePictureEditDialog v-model="editVisible" :picture="detail" @success="load" />
+    <PictureEditDialog v-model="editVisible" :picture="detail" kind="space" @success="load" />
     <SimilarSearchDialog v-model="similarVisible" :picture-id="detail?.id ?? 0" kind="space" />
     <ShareDialog v-model="shareVisible" :url="detail?.url ?? ''" />
     <OutpaintDialog v-model="outpaintVisible" :picture-id="detail?.id ?? 0" :url="detail?.url ?? ''" />

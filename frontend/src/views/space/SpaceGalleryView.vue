@@ -8,8 +8,8 @@ import { useRouter } from 'vue-router'
 import { spaceApi } from '@/api/space'
 import { getErrorMessage } from '@/api/http'
 import { PICTURE_CATEGORIES, type PictureListItemRead, type PictureSort } from '@/types/picture'
-import SpacePictureCard from '@/components/SpacePictureCard.vue'
-import SpaceUploadDialog from './SpaceUploadDialog.vue'
+import PictureCard from '@/components/PictureCard.vue'
+import PictureUploadDialog from '@/components/PictureUploadDialog.vue'
 import ColorSearchDialog from './ColorSearchDialog.vue'
 
 const router = useRouter()
@@ -109,7 +109,7 @@ onMounted(load)
     </el-card>
 
     <div v-loading="loading" class="grid">
-      <SpacePictureCard v-for="item in rows" :key="item.id" :item="item" />
+      <PictureCard v-for="item in rows" :key="item.id" :item="item" kind="space" />
     </div>
 
     <el-empty v-if="!loading && rows.length === 0" description="暂无图片" />
@@ -127,7 +127,7 @@ onMounted(load)
       />
     </div>
 
-    <SpaceUploadDialog v-model="uploadVisible" @success="load" />
+    <PictureUploadDialog v-model="uploadVisible" kind="space" @success="load" />
     <ColorSearchDialog v-model="colorSearchVisible" />
   </div>
 </template>

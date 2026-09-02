@@ -7,7 +7,7 @@ import { ElMessage } from 'element-plus'
 import { spaceApi } from '@/api/space'
 import { getErrorMessage } from '@/api/http'
 import type { ColorSearchItem } from '@/types/space'
-import SpacePictureCard from '@/components/SpacePictureCard.vue'
+import PictureCard from '@/components/PictureCard.vue'
 
 const visible = defineModel<boolean>({ default: false })
 
@@ -46,7 +46,7 @@ watch(visible, (v) => {
 
     <div v-loading="loading" class="grid">
       <div v-for="item in rows" :key="item.id" class="color-item">
-        <SpacePictureCard :item="item" />
+        <PictureCard :item="item" kind="space" />
         <el-tag class="distance" size="small" type="info" effect="plain">距离 {{ item.color_distance }}</el-tag>
       </div>
     </div>
