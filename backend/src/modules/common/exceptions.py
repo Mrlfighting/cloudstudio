@@ -79,6 +79,12 @@ class SpaceBannedError(DomainError):
     pass
 
 
+class TeamMemberNotFoundError(ResourceNotFoundError):
+    """Raised when a team space member cannot be found."""
+
+    pass
+
+
 class ExternalServiceError(DomainError):
     """Raised when an external service call (e.g. Bailian outpainting) fails."""
 
