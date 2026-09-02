@@ -139,3 +139,17 @@ class SpaceMemberRead(BaseModel):
     name: str
     space_role: str
     created_at: datetime | None = None
+
+
+class TeamSpaceListItemRead(BaseModel):
+    """我加入（含我创建）的团队空间列表项（含我的角色）。"""
+
+    id: int
+    name: str
+    space_role: str
+    space_level: int
+    total_count: int
+    total_size: int
+    max_count: int
+    max_size: int
+    created_at: datetime | None = None

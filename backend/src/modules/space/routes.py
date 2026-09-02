@@ -24,6 +24,7 @@ from .schemas import (
     SpaceMemberUpdate,
     SpaceRead,
     SpaceUpdate,
+    TeamSpaceListItemRead,
 )
 
 router = APIRouter(tags=["Spaces"])
@@ -362,6 +363,27 @@ async def get_my_team_space(
         if http_exception:
             raise http_exception
         raise HTTPException(status_code=500, detail="获取团队空间信息失败")
+
+
+@router.get(
+    "/team/joined",
+    response_model=list[TeamSpaceListItemRead],
+    summary="我加入的团队空间列表（登录用户）",
+    description="返回我作为成员（含我创建）加入的所有团队空间及我的角色。",
+)
+async def list_joined_team_spaces(
+    db: AsyncSessionDep,
+    current_user: CurrentUserDep,
+    space_service: SpaceServiceDep,
+) -> list[dict[str, Any]]:
+    """我加入的团队空间列表。"""
+    try:
+        return await space_service.list_joined_teams(db, current_user)
+    except Exception as e:
+        http_exception = handle_exception(e)
+        if http_exception:
+            raise http_exception
+        raise HTTPException(status_code=500, detail="获取团队列表失败")
 
 
 @router.patch(

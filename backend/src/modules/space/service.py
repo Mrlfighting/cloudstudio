@@ -59,6 +59,7 @@ from .schemas import (
     SpaceMemberRead,
     SpaceRead,
     SpaceUserCreateInternal,
+    TeamSpaceListItemRead,
 )
 
 logger = get_logger()
@@ -480,6 +481,44 @@ class SpaceService:
         """我创建的团队空间信息（含剩余配额）。"""
         space = await self._get_user_team_space(db, current_user["id"])
         return self._space_info(space)
+
+    async def list_joined_teams(self, db: AsyncSession, current_user: dict[str, Any]) -> list[dict[str, Any]]:
+        """我加入（含我创建）的团队空间列表，含我的角色。"""
+        stmt = (
+            select(
+                Space.id,
+                Space.name,
+                SpaceUser.space_role,
+                Space.space_level,
+                Space.total_count,
+                Space.total_size,
+                Space.max_count,
+                Space.max_size,
+                Space.created_at,
+            )
+            .join(SpaceUser, SpaceUser.space_id == Space.id)
+            .where(
+                SpaceUser.user_id == current_user["id"],
+                Space.space_type == SpaceType.TEAM,
+                Space.is_deleted == False,  # noqa: E712
+            )
+            .order_by(Space.created_at.desc())
+        )
+        rows = (await db.execute(stmt)).all()
+        return [
+            TeamSpaceListItemRead(
+                id=r[0],
+                name=r[1],
+                space_role=r[2],
+                space_level=r[3],
+                total_count=r[4],
+                total_size=r[5],
+                max_count=r[6],
+                max_size=r[7],
+                created_at=r[8],
+            ).model_dump()
+            for r in rows
+        ]
 
     async def update_team_settings(
         self, db: AsyncSession, space_id: int, name: str | None, space_level: int | None

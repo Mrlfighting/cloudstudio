@@ -138,3 +138,17 @@ async def test_non_member_access_forbidden(
     team = await SpaceService().create_team(db_session, "团队", test_user)
     resp = await auth_client_2.get(f"/api/v1/spaces/{team['id']}/pictures")
     assert resp.status_code == 403
+
+
+async def test_list_joined_teams(auth_client: AsyncClient, test_user_2: dict):
+    """我加入的团队空间列表（创建者自动为管理员）。"""
+    create = await auth_client.post("/api/v1/spaces/team", json={"name": "团队"})
+    team_id = create.json()["id"]
+    await auth_client.post(
+        f"/api/v1/spaces/{team_id}/members", json={"user_id": test_user_2["id"], "space_role": "editor"}
+    )
+
+    resp = await auth_client.get("/api/v1/spaces/team/joined")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert any(t["id"] == team_id and t["space_role"] == "admin" for t in data)

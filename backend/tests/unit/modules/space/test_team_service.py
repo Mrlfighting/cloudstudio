@@ -194,3 +194,21 @@ async def test_require_team_permission_matrix(
     # 非成员全拒
     with pytest.raises(PermissionDeniedError):
         await read_dep(space_id=team["id"], db=db_session, current_user=non_member)
+
+
+@pytest.mark.asyncio
+async def test_list_joined_teams(
+    space_service: SpaceService, db_session: AsyncSession, test_user: dict, test_user_2: dict
+):
+    """我加入（含我创建）的团队空间列表：创建者为 admin，被邀请成员为对应角色。"""
+    team = await space_service.create_team(db_session, "团队", test_user)
+    await space_service.add_member(db_session, team["id"], test_user_2["id"], SpaceRole.EDITOR)
+
+    mine = await space_service.list_joined_teams(db_session, test_user)
+    assert len(mine) == 1
+    assert mine[0]["id"] == team["id"]
+    assert mine[0]["space_role"] == SpaceRole.ADMIN.value
+
+    joined = await space_service.list_joined_teams(db_session, test_user_2)
+    assert len(joined) == 1
+    assert joined[0]["space_role"] == SpaceRole.EDITOR.value
