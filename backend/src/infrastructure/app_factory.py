@@ -33,6 +33,7 @@ from .config.settings import (
     get_settings,
 )
 from .database.session import create_tables
+from .image_collab.initialize import close_image_collab, initialize_image_collab
 from .image_outpainting.initialize import close_image_outpainting, initialize_image_outpainting
 from .image_search.initialize import close_image_search, initialize_image_search
 from .middleware import ClientCacheMiddleware, SecurityHeadersMiddleware
@@ -80,6 +81,9 @@ def lifespan_factory(
             if getattr(settings, "IMAGE_OUTPAINTING_ENABLED", False):
                 initialize_image_outpainting()
 
+            if getattr(settings, "IMAGE_COLLAB_ENABLED", False):
+                await initialize_image_collab()
+
             await auth.initialize()
 
             initialization_complete.set()
@@ -101,6 +105,8 @@ def lifespan_factory(
             await close_image_search()
 
             await close_image_outpainting()
+
+            await close_image_collab()
 
     return lifespan
 

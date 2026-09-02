@@ -461,6 +461,26 @@ class ImageOutpaintingSettings(BaseSettings):
         return f"https://{self.IMAGE_OUTPAINTING_WORKSPACE_ID}.{self.IMAGE_OUTPAINTING_REGION}.maas.aliyuncs.com"
 
 
+class ImageCollabSettings(BaseSettings):
+    """图片协同编辑配置（RabbitMQ 消息缓冲 + Redis 编辑锁）。"""
+
+    IMAGE_COLLAB_ENABLED: bool = config("IMAGE_COLLAB_ENABLED", default=True, cast=bool)
+    COLLAB_RABBITMQ_HOST: str = config("COLLAB_RABBITMQ_HOST", default="localhost")
+    COLLAB_RABBITMQ_PORT: int = config("COLLAB_RABBITMQ_PORT", default=5672, cast=int)
+    COLLAB_RABBITMQ_USER: str = config("COLLAB_RABBITMQ_USER", default="guest")
+    COLLAB_RABBITMQ_PASSWORD: str = config("COLLAB_RABBITMQ_PASSWORD", default="guest")
+    COLLAB_RABBITMQ_VHOST: str = config("COLLAB_RABBITMQ_VHOST", default="/")
+    COLLAB_LOCK_TTL: int = config("COLLAB_LOCK_TTL", default=30, cast=int)
+
+    @property
+    def COLLAB_RABBITMQ_URL(self) -> str:
+        """RabbitMQ 连接 URL（amqp://user:pass@host:port/vhost）。"""
+        return (
+            f"amqp://{self.COLLAB_RABBITMQ_USER}:{self.COLLAB_RABBITMQ_PASSWORD}"
+            f"@{self.COLLAB_RABBITMQ_HOST}:{self.COLLAB_RABBITMQ_PORT}/{self.COLLAB_RABBITMQ_VHOST.lstrip('/')}"
+        )
+
+
 class Settings(
     EnvironmentSettings,
     DatabaseSettings,
@@ -481,6 +501,7 @@ class Settings(
     TencentCloudSettings,
     ImageSearchSettings,
     ImageOutpaintingSettings,
+    ImageCollabSettings,
 ):
     """Main settings class that combines all setting categories."""
 

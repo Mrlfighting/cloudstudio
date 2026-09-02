@@ -52,6 +52,8 @@ class Picture(Base, TimestampMixin, SoftDeleteMixin):
     # 审核理由（拒绝时必填，通过时清空）
     review_reason: Mapped[str | None] = mapped_column(String(512), default=None)
     download_count: Mapped[int] = mapped_column(Integer, default=0)
+    # 协同编辑参数（非破坏性）：{"rotation": int, "crop": {x,y,width,height}|null}，不含缩放
+    edit_state: Mapped[dict | None] = mapped_column(JSON, default=None)
 
     def __repr__(self) -> str:
         return f"{self.name} ({self.category})"

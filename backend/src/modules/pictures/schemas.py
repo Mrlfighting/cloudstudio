@@ -29,6 +29,7 @@ class PictureRead(BaseModel):
     status: str
     review_reason: str | None = None
     download_count: int = 0
+    edit_state: dict | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

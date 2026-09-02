@@ -667,6 +667,13 @@ class SpaceService:
         await crud_pictures.delete(db=db, id=picture_id)
         await self._add_quota(db, space.id, -(picture.get("pic_size") or 0), -1)
 
+    async def save_picture_edit_state(self, db: AsyncSession, picture_id: int, edit_state: dict[str, Any]) -> None:
+        """保存协同编辑参数（非破坏性，覆盖式，不含缩放）。"""
+        picture = await crud_pictures.get(db=db, id=picture_id, is_deleted=False)
+        if not picture:
+            raise PictureNotFoundError(f"图片 {picture_id} 不存在")
+        await crud_pictures.update(db=db, object={"edit_state": edit_state}, id=picture_id)
+
     # ------------------------------------------------------------------ 辅助
 
     async def _get_user_space(self, db: AsyncSession, user_id: int) -> Space:
