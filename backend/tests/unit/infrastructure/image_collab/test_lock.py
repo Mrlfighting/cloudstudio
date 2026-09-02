@@ -47,11 +47,12 @@ async def test_get_holder(lock: CollabLock):
 
 
 @pytest.mark.asyncio
-async def test_fail_open(lock: CollabLock):
-    """Redis 异常时 fail-open：try_acquire True、get_holder None、release False。"""
+async def test_memory_fallback(lock: CollabLock):
+    """Redis 异常时回退内存锁，语义与 Redis 一致（获取/查询/释放都正确）。"""
     lock._redis.get.side_effect = Exception("redis down")
     lock._redis.set.side_effect = Exception("redis down")
     lock._redis.eval.side_effect = Exception("redis down")
     assert await lock.try_acquire(1, 1, 100) is True
+    assert await lock.get_holder(1, 1) == 100
+    assert await lock.release(1, 1, 100) is True
     assert await lock.get_holder(1, 1) is None
-    assert await lock.release(1, 1, 100) is False
