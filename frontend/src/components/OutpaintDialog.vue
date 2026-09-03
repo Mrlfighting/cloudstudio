@@ -249,8 +249,8 @@ onUnmounted(stopPolling)
 .origin-preview {
   position: relative;
   margin-bottom: 16px;
-  background: #f0f2f5;
-  border-radius: 8px;
+  background: #f7f8fb;
+  border-radius: var(--app-radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -285,7 +285,7 @@ onUnmounted(stopPolling)
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #606266;
+  color: var(--app-text);
 }
 
 .offset-item :deep(.el-input-number) {
@@ -295,7 +295,7 @@ onUnmounted(stopPolling)
 .hint {
   margin-left: 10px;
   font-size: 12px;
-  color: #909399;
+  color: var(--app-muted);
 }
 
 .processing {
@@ -315,8 +315,8 @@ onUnmounted(stopPolling)
 }
 
 .compare-item {
-  background: #f0f2f5;
-  border-radius: 8px;
+  background: #f7f8fb;
+  border-radius: var(--app-radius-md);
   padding: 8px;
   min-height: 280px;
   display: flex;
@@ -327,7 +327,7 @@ onUnmounted(stopPolling)
 .compare-label {
   align-self: flex-start;
   font-size: 13px;
-  color: #606266;
+  color: var(--app-text);
   margin-bottom: 8px;
 }
 
@@ -340,7 +340,7 @@ onUnmounted(stopPolling)
 .result-tip {
   margin: 12px 0 0;
   font-size: 12px;
-  color: #909399;
+  color: var(--app-muted);
   text-align: center;
 }
 </style>

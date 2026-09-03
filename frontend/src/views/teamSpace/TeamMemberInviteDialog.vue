@@ -53,7 +53,15 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <el-dialog v-model="visible" title="邀请成员" width="420px">
+  <el-dialog v-model="visible" title="邀请成员" width="420px" class="invite-dialog">
+    <div class="dialog-intro">
+      <div class="dialog-icon"><el-icon><UserFilled /></el-icon></div>
+      <div>
+        <div class="dialog-kicker">TEAM MEMBERS</div>
+        <div class="dialog-heading">邀请协作者加入</div>
+        <div class="dialog-subtitle">输入用户 ID 并设置初始协作权限</div>
+      </div>
+    </div>
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
       <el-form-item label="用户 ID" prop="user_id">
         <el-input-number v-model="form.user_id" :min="1" :controls="false" placeholder="输入用户 ID" style="width: 100%" />
@@ -71,3 +79,11 @@ async function handleSubmit() {
     </template>
   </el-dialog>
 </template>
+
+<style scoped>
+.dialog-intro { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.dialog-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 14px; color: #fff; background: linear-gradient(135deg, var(--app-mint), var(--app-blue)); box-shadow: 8px 8px 0 rgba(159,220,244,.24); }
+.dialog-kicker { color: #5b8a87; font-size: 10px; font-weight: 800; letter-spacing: 1.8px; }
+.dialog-heading { margin-top: 3px; font-size: 20px; font-weight: 800; color: var(--app-ink); }
+.dialog-subtitle { margin-top: 4px; color: var(--app-muted); font-size: 12px; }
+</style>

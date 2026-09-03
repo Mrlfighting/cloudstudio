@@ -97,7 +97,7 @@ async function handleSubmit() {
 
 <template>
   <div class="page-container">
-    <h2 class="page-title">编辑资料</h2>
+    <div class="page-intro"><div class="eyebrow">ACCOUNT · 账号设置</div><h2 class="page-title">编辑资料</h2><p class="page-subtitle">更新你的公开资料和头像信息</p></div>
 
     <el-card class="edit-card">
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">

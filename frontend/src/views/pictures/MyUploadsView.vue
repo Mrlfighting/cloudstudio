@@ -60,7 +60,7 @@ onMounted(load)
 
 <template>
   <div class="page-container">
-    <h2 class="page-title">我的上传</h2>
+    <div class="page-intro"><div class="eyebrow">LIBRARY · 我的内容</div><h2 class="page-title">我的上传</h2><p class="page-subtitle">查看上传记录、审核状态和反馈</p></div>
 
     <el-card class="toolbar-card" shadow="never">
       <div class="toolbar">

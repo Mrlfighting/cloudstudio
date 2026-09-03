@@ -70,7 +70,7 @@ onMounted(load)
 <template>
   <div class="page-container">
     <div class="gallery-header">
-      <h2 class="page-title">我的空间图册</h2>
+      <div><div class="eyebrow">PRIVATE GALLERY · 私人图册</div><h2 class="page-title">我的空间图册</h2><p class="page-subtitle">管理私有图片，使用 AI 工具继续创作</p></div>
       <div class="header-actions">
         <el-button @click="router.push('/spaces')">返回空间</el-button>
         <el-button :icon="'Brush'" @click="colorSearchVisible = true">按颜色搜索</el-button>

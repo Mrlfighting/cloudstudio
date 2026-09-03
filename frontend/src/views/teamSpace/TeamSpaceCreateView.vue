@@ -42,7 +42,7 @@ async function handleSubmit() {
   <div class="page-container">
     <el-card class="form-card" shadow="never">
       <template #header>
-        <span class="card-title">创建团队空间</span>
+        <div><div class="eyebrow">COLLABORATION · 新建团队</div><span class="card-title">创建团队空间</span><p class="page-subtitle">邀请伙伴一起整理素材并协作创作</p></div>
       </template>
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
         <el-form-item label="团队名称" prop="name">

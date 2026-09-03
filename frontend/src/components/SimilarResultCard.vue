@@ -45,20 +45,21 @@ function openSource() {
 
 <style scoped>
 .sim-card {
-  border-radius: 10px;
+  border-radius: var(--app-radius-md) !important;
   overflow: hidden;
-  transition: transform 0.2s;
+  transition: transform .2s, box-shadow .2s;
 }
 
 .sim-card:hover {
   transform: translateY(-4px);
+  box-shadow: var(--app-shadow-soft) !important;
 }
 
 .thumb-link {
   display: block;
   height: 180px;
   overflow: hidden;
-  background: #f0f2f5;
+  background: #f7f8fb;
 }
 
 .thumb {
@@ -91,13 +92,13 @@ function openSource() {
 
 .score {
   font-size: 12px;
-  color: #909399;
+  color: var(--app-muted);
 }
 
 .title {
   margin-top: 8px;
   font-size: 14px;
-  color: #1f2937;
+  color: var(--app-ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

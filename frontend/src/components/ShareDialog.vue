@@ -42,9 +42,11 @@ async function copyLink() {
 }
 
 .qr {
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  padding: 8px;
+  border: 1px solid var(--app-line);
+  border-radius: var(--app-radius-md);
+  padding: 10px;
+  background: #fff;
+  box-shadow: var(--app-shadow-soft);
 }
 
 .link-row {
@@ -52,4 +54,5 @@ async function copyLink() {
   gap: 8px;
   width: 100%;
 }
+@media (max-width: 480px) { .link-row { flex-direction: column; } }
 </style>

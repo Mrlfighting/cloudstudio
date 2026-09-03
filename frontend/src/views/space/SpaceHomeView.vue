@@ -49,7 +49,13 @@ onMounted(load)
 
 <template>
   <div class="page-container">
-    <h2 class="page-title">我的空间</h2>
+    <div class="hero-row">
+      <div>
+        <div class="eyebrow">PRIVATE SPACE · 私人工作台</div>
+        <h2 class="page-title">我的空间</h2>
+        <p class="page-subtitle">管理你的私藏灵感与创作资产</p>
+      </div>
+    </div>
 
     <el-skeleton v-if="loading" :rows="6" animated />
 
@@ -121,8 +127,8 @@ onMounted(load)
 
 <style scoped>
 .space-card {
-  border-radius: 10px;
-  max-width: 720px;
+  border-radius: var(--app-radius-lg) !important;
+  max-width: 900px;
 }
 
 .space-header {
@@ -134,8 +140,8 @@ onMounted(load)
 }
 
 .space-name {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 800;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -155,8 +161,12 @@ onMounted(load)
 .quota-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 18px;
 }
+.quota-item { padding: 18px; border-radius: var(--app-radius-md); background: #fbfcfe; border: 1px solid var(--app-line-soft); }
+.eyebrow { color: #b16880; font-size: 11px; font-weight: 800; letter-spacing: 2px; margin-bottom: 10px; }
+.page-title { margin-bottom: 0; }
+.page-subtitle { margin: 10px 0 20px; color: var(--app-muted); font-size: 15px; }
 
 .quota-label {
   font-weight: 600;

@@ -39,7 +39,7 @@ async function handleSubmit() {
 
 <template>
   <div class="page-container">
-    <h2 class="page-title">创建空间</h2>
+    <div class="page-intro"><div class="eyebrow">PRIVATE SPACE · 新建空间</div><h2 class="page-title">创建空间</h2><p class="page-subtitle">建立一个只属于你的灵感收纳地</p></div>
 
     <el-card class="create-card" shadow="never">
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">

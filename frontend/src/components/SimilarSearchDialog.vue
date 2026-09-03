@@ -69,6 +69,7 @@ watch(visible, (v) => {
 <style scoped>
 .warn-item {
   margin-bottom: 12px;
+  border-radius: var(--app-radius-sm);
 }
 
 .grid {

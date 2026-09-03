@@ -126,7 +126,7 @@ onMounted(load)
 
 <template>
   <div class="page-container">
-    <h2 class="page-title">空间管理</h2>
+    <div class="page-intro"><div class="eyebrow">ADMIN · 空间管理</div><h2 class="page-title">空间管理</h2><p class="page-subtitle">查看空间配额、状态并处理异常空间</p></div>
 
     <el-card class="toolbar-card" shadow="never">
       <div class="toolbar">

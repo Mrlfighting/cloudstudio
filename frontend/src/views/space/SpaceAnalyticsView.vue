@@ -11,6 +11,8 @@ import { getErrorMessage } from '@/api/http'
 import { formatBytes } from '@/types/space'
 import type { CategoryStat, Granularity, MySpaceOverview, MyTopPicture, TagStat, TrendPoint } from '@/types/analytics'
 import BaseChart from '@/components/BaseChart.vue'
+import PageIntro from '@/components/PageIntro.vue'
+import StatCard from '@/components/StatCard.vue'
 
 const router = useRouter()
 
@@ -108,7 +110,7 @@ onMounted(loadAll)
 
 <template>
   <div class="dashboard-container" v-loading="loading">
-    <h2 class="page-title">我的空间分析</h2>
+    <PageIntro eyebrow="INSIGHTS · 空间分析" title="我的空间分析" subtitle="用数据了解你的存储和创作趋势" />
 
     <!-- 无空间空态 -->
     <el-result
@@ -125,18 +127,9 @@ onMounted(loadAll)
     <template v-else-if="overview">
       <!-- 顶部统计卡片 -->
       <div class="stat-grid">
-        <el-card class="stat-card" shadow="never">
-          <div class="stat-label">图片数量</div>
-          <div class="stat-value">{{ overview.picture_count }} <span class="unit">/ {{ overview.max_count }}</span></div>
-        </el-card>
-        <el-card class="stat-card" shadow="never">
-          <div class="stat-label">已用容量</div>
-          <div class="stat-value">{{ formatBytes(overview.total_size) }} <span class="unit">/ {{ formatBytes(overview.max_size) }}</span></div>
-        </el-card>
-        <el-card class="stat-card" shadow="never">
-          <div class="stat-label">容量使用率</div>
-          <div class="stat-value">{{ sizePercent() }}<span class="unit">%</span></div>
-        </el-card>
+        <StatCard label="图片数量" :value="overview.picture_count" :hint="`/ ${overview.max_count}`" />
+        <StatCard label="已用容量" :value="formatBytes(overview.total_size)" :hint="`/ ${formatBytes(overview.max_size)}`" />
+        <StatCard label="容量使用率" :value="sizePercent()" hint="%" />
       </div>
 
       <!-- 容量使用进度 -->

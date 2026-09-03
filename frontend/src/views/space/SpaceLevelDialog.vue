@@ -90,6 +90,6 @@ async function handleSubmit() {
 <style scoped>
 .level-tip {
   margin-bottom: 12px;
-  color: #606266;
+  color: var(--app-text);
 }
 </style>

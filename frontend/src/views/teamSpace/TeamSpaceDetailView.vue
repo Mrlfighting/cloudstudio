@@ -146,7 +146,7 @@ onMounted(async () => {
     <template v-else>
       <div class="header">
         <div>
-          <h2 class="page-title">{{ team.team?.name ?? '团队空间' }}</h2>
+          <div class="eyebrow">TEAM WORKSPACE · 团队工作台</div><h2 class="page-title">{{ team.team?.name ?? '团队空间' }}</h2>
           <div v-if="team.myRole" class="role-line">
             <el-tag size="small" :type="roleTagType(team.myRole)">我的角色：{{ spaceRoleLabel(team.myRole) }}</el-tag>
           </div>

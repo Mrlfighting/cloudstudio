@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 团队空间图片详情：大图 + 元信息 + 编辑/删除 + 协同编辑（缩放/旋转/裁剪实时同步）。
+ * 团队空间图片详情：大图 + 信息卡 + 协同编辑工具条
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -10,7 +10,6 @@ import { getErrorMessage } from '@/api/http'
 import { useTeamStore } from '@/stores/team'
 import { useAuthStore } from '@/stores/auth'
 import type { CropRect, PersistedEditState, PictureEditState, PictureRead } from '@/types/picture'
-import EmptyValue from '@/components/EmptyValue.vue'
 import ShareDialog from '@/components/ShareDialog.vue'
 import PictureEditDialog from '@/components/PictureEditDialog.vue'
 import CollabToolbar from '@/components/CollabToolbar.vue'
@@ -24,6 +23,10 @@ const auth = useAuthStore()
 
 const spaceId = computed(() => Number(route.params.id))
 const pictureId = computed(() => Number(route.params.pictureId))
+type DetailTextRow = { label: string; type: 'text'; value: string }
+type DetailChipRow = { label: string; type: 'chips'; chips: string[] }
+type DetailRow = DetailTextRow | DetailChipRow
+type DetailStat = { label: string; value: string }
 
 const loading = ref(false)
 const notFound = ref(false)
@@ -78,11 +81,58 @@ function formatSize(bytes: number | null): string {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`
 }
 
+function formatDateTime(value: string | null): string {
+  if (!value) return '未填写'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('zh-CN', {
+    dateStyle: 'medium',
+    timeStyle: 'medium',
+    hour12: false,
+  }).format(date)
+}
+
+function formatDimension(picWidth: number | null, picHeight: number | null): string {
+  if (!picWidth || !picHeight) return '未填写'
+  return `${picWidth} × ${picHeight}`
+}
+
+const previewChips = computed(() => {
+  if (!detail.value) return []
+  return [detail.value.category, detail.value.pic_format, formatDimension(detail.value.pic_width, detail.value.pic_height)]
+    .filter((item): item is string => Boolean(item))
+    .slice(0, 3)
+})
+
+const detailStats = computed<DetailStat[]>(() => {
+  if (!detail.value) return []
+  return [
+    { label: '尺寸', value: formatDimension(detail.value.pic_width, detail.value.pic_height) },
+    { label: '格式', value: detail.value.pic_format || '未填写' },
+    { label: '大小', value: formatSize(detail.value.pic_size) },
+    { label: '下载次数', value: String(detail.value.download_count) },
+  ]
+})
+
+const detailRows = computed<DetailRow[]>(() => {
+  if (!detail.value) return []
+  return [
+    { label: '分类', type: 'text', value: detail.value.category || '未填写' },
+    { label: '标签', type: 'chips', chips: detail.value.tags },
+    { label: '简介', type: 'text', value: detail.value.introduction || '未填写' },
+    { label: '尺寸', type: 'text', value: formatDimension(detail.value.pic_width, detail.value.pic_height) },
+    { label: '格式', type: 'text', value: detail.value.pic_format || '未填写' },
+    { label: '大小', type: 'text', value: formatSize(detail.value.pic_size) },
+    { label: '色彩模式', type: 'text', value: detail.value.color_mode || '未填写' },
+    { label: '上传者 ID', type: 'text', value: String(detail.value.user_id) },
+    { label: '创建时间', type: 'text', value: formatDateTime(detail.value.created_at) },
+  ]
+})
+
 async function load() {
   loading.value = true
   try {
     detail.value = await teamSpaceApi.getPicture(spaceId.value, pictureId.value)
-    // 用落库的 edit_state 初始化视图（缩放默认 1.0，不落库）
     editState.value = normalizeSaved(detail.value.edit_state)
   } catch {
     notFound.value = true
@@ -128,13 +178,33 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="page-container">
-    <el-result v-if="!team.loading && !team.isMember" icon="warning" title="无访问权限" sub-title="你不是该团队成员">
+    <el-result
+      v-if="!team.loading && !team.isMember"
+      icon="warning"
+      title="无访问权限"
+      sub-title="你不是该团队成员"
+    >
       <template #extra>
         <el-button type="primary" @click="router.push('/spaces/team')">返回团队列表</el-button>
       </template>
     </el-result>
 
     <template v-else>
+      <div class="detail-topbar">
+        <div class="page-intro">
+          <div class="eyebrow">DETAIL PAGE</div>
+          <h2 class="page-title">图片详情页</h2>
+          <p class="page-subtitle">团队图片页保留协同编辑能力，同时把主预览、信息表和操作区整理得更完整。</p>
+        </div>
+
+        <div class="detail-nav-pills">
+          <span class="detail-nav-pill">团队空间</span>
+          <span class="detail-nav-pill is-active">详情页</span>
+          <span class="detail-nav-pill">公共图库</span>
+          <span class="detail-nav-pill">个人空间</span>
+        </div>
+      </div>
+
       <el-skeleton v-if="loading" :rows="8" animated />
 
       <el-result v-else-if="notFound || !detail" icon="warning" title="图片不存在" sub-title="该图片可能已被删除">
@@ -144,68 +214,111 @@ onBeforeUnmount(() => {
       </el-result>
 
       <template v-else>
-        <div class="detail-layout">
-          <div class="image-panel">
-            <img class="main-img" :src="detail.url" alt="" :style="imgStyle" />
-            <CollabToolbar
-              v-if="team.canWrite"
-              :is-editing="isEditing"
-              :editor-user="editorUser"
-              @enter="enterEdit"
-              @exit="exitEdit"
-              @zoom-in="zoomIn"
-              @zoom-out="zoomOut"
-              @rotate-left="rotateLeft"
-              @rotate-right="rotateRight"
-              @crop="cropVisible = true"
-              @save="saveEdit"
-            />
-          </div>
+        <div class="detail-grid">
+          <div class="detail-stack">
+            <el-card class="detail-card detail-figure-card" shadow="never">
+              <div class="detail-figure">
+                <div class="detail-badge">
+                  <el-icon><Picture /></el-icon>
+                  预览
+                </div>
 
-          <el-card class="info-panel" shadow="never">
-            <template #header>
-              <div class="info-header">
-                <span>{{ detail.name }}</span>
-                <div class="actions">
-                  <el-button :icon="'Share'" @click="shareVisible = true">分享</el-button>
-                  <el-button v-if="team.canWrite" type="primary" @click="editVisible = true">编辑</el-button>
-                  <el-button v-if="team.canDelete" type="danger" @click="onDelete">删除</el-button>
+                <div class="detail-figure-tags">
+                  <span v-for="chip in previewChips" :key="chip" class="detail-tag-chip">{{ chip }}</span>
+                </div>
+
+                <img class="detail-image" :src="detail.url" alt="" :style="imgStyle" />
+
+                <CollabToolbar
+                  v-if="team.canWrite"
+                  :is-editing="isEditing"
+                  :editor-user="editorUser"
+                  @enter="enterEdit"
+                  @exit="exitEdit"
+                  @zoom-in="zoomIn"
+                  @zoom-out="zoomOut"
+                  @rotate-left="rotateLeft"
+                  @rotate-right="rotateRight"
+                  @crop="cropVisible = true"
+                  @save="saveEdit"
+                />
+              </div>
+
+              <div class="detail-section">
+                <div class="detail-section-head">
+                  <div>
+                    <h3 class="detail-title">{{ detail.name }}</h3>
+                    <p class="detail-desc">{{ detail.introduction || '暂无简介，团队素材可在右侧查看完整属性。' }}</p>
+                  </div>
+
+                  <el-tag effect="plain" round type="info">图片 ID {{ detail.id }}</el-tag>
+                </div>
+
+                <div class="detail-meta-grid">
+                  <div v-for="stat in detailStats" :key="stat.label" class="detail-stat">
+                    <span>{{ stat.label }}</span>
+                    <strong>{{ stat.value }}</strong>
+                  </div>
                 </div>
               </div>
-            </template>
+            </el-card>
+          </div>
 
-            <el-descriptions :column="1" border>
-              <el-descriptions-item label="分类">
-                <el-tag v-if="detail.category" size="small" type="info">{{ detail.category }}</el-tag>
-                <EmptyValue v-else />
-              </el-descriptions-item>
-              <el-descriptions-item label="标签">
-                <template v-if="detail.tags.length">
-                  <el-tag v-for="t in detail.tags" :key="t" size="small" effect="plain" type="primary">{{ t }}</el-tag>
-                </template>
-                <EmptyValue v-else />
-              </el-descriptions-item>
-              <el-descriptions-item label="简介">
-                <EmptyValue :value="detail.introduction" />
-              </el-descriptions-item>
-              <el-descriptions-item label="尺寸">
-                <EmptyValue
-                  :value="detail.pic_width && detail.pic_height ? `${detail.pic_width} × ${detail.pic_height}` : null"
-                />
-              </el-descriptions-item>
-              <el-descriptions-item label="格式">
-                <EmptyValue :value="detail.pic_format" />
-              </el-descriptions-item>
-              <el-descriptions-item label="大小">{{ formatSize(detail.pic_size) }}</el-descriptions-item>
-              <el-descriptions-item label="色彩模式">
-                <EmptyValue :value="detail.color_mode" />
-              </el-descriptions-item>
-              <el-descriptions-item label="上传者 ID">{{ detail.user_id }}</el-descriptions-item>
-              <el-descriptions-item label="创建时间">
-                <EmptyValue :value="detail.created_at" />
-              </el-descriptions-item>
-            </el-descriptions>
-          </el-card>
+          <div class="detail-side">
+            <el-card class="detail-card detail-side-card" shadow="never">
+              <template #header>
+                <div class="detail-side-head">
+                  <div>
+                    <h3 class="detail-side-title">素材信息</h3>
+                    <div class="detail-side-note">{{ team.canWrite ? '协同编辑中可直接修改' : '仅查看模式' }}</div>
+                  </div>
+                </div>
+              </template>
+
+              <div class="detail-table">
+                <div v-for="row in detailRows" :key="row.label" class="detail-row">
+                  <div class="detail-label">{{ row.label }}</div>
+                  <div class="detail-value">
+                    <template v-if="row.type === 'chips'">
+                      <div v-if="row.chips.length" class="detail-pill-list">
+                        <span v-for="chip in row.chips" :key="chip" class="detail-pill">{{ chip }}</span>
+                      </div>
+                      <span v-else class="detail-muted">未填写</span>
+                    </template>
+                    <template v-else>
+                      {{ row.value }}
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </el-card>
+
+            <el-card class="detail-card detail-side-card" shadow="never">
+              <template #header>
+                <div class="detail-side-head">
+                  <div>
+                    <h3 class="detail-side-title">操作</h3>
+                    <div class="detail-side-note">分享、编辑、删除</div>
+                  </div>
+                </div>
+              </template>
+
+              <div class="detail-action-list">
+                <el-button type="primary" @click="editVisible = true">
+                  <el-icon><Edit /></el-icon>
+                  编辑图片
+                </el-button>
+                <el-button @click="shareVisible = true">
+                  <el-icon><Share /></el-icon>
+                  分享素材
+                </el-button>
+                <el-button v-if="team.canDelete" type="danger" @click="onDelete">
+                  <el-icon><Delete /></el-icon>
+                  删除图片
+                </el-button>
+              </div>
+            </el-card>
+          </div>
         </div>
       </template>
     </template>
@@ -223,54 +336,3 @@ onBeforeUnmount(() => {
     />
   </div>
 </template>
-
-<style scoped>
-.detail-layout {
-  display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 20px;
-  align-items: start;
-}
-
-.image-panel {
-  position: relative;
-  background: #fff;
-  border-radius: 10px;
-  padding: 16px;
-  min-height: 400px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.main-img {
-  max-width: 100%;
-  max-height: 70vh;
-  display: block;
-}
-
-.info-panel {
-  border-radius: 10px;
-}
-
-.info-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 18px;
-  font-weight: 600;
-  gap: 8px;
-}
-
-.actions {
-  display: flex;
-  gap: 8px;
-}
-
-@media (max-width: 900px) {
-  .detail-layout {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

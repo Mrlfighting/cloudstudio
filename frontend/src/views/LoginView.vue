@@ -50,8 +50,12 @@ async function handleLogin() {
 
 <template>
   <div class="auth-page">
+    <div class="auth-decoration" aria-hidden="true"><span></span><i></i><b></b></div>
     <el-card class="auth-card">
-      <template #header>登录</template>
+      <template #header>
+        <div class="auth-heading">欢迎回来</div>
+        <div class="auth-kicker">登录云上工坊，继续发现灵感</div>
+      </template>
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent>
         <el-form-item label="账号" prop="account">
           <el-input

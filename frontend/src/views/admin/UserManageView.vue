@@ -76,7 +76,7 @@ onMounted(load)
 
 <template>
   <div class="page-container">
-    <h2 class="page-title">用户管理</h2>
+    <div class="page-intro"><div class="eyebrow">ADMIN · 用户管理</div><h2 class="page-title">用户管理</h2><p class="page-subtitle">维护用户状态、角色与会员信息</p></div>
 
     <el-card class="manage-card">
       <el-table v-loading="loading" :data="rows" stripe>

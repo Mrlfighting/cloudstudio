@@ -61,11 +61,15 @@ watch(visible, (v) => {
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
+  padding: 12px;
+  border-radius: var(--app-radius-md);
+  background: #fff9fb;
+  border: 1px solid #f4e0e6;
 }
 
 .hint {
   font-size: 12px;
-  color: #909399;
+  color: var(--app-muted);
 }
 
 .grid {

@@ -153,7 +153,7 @@ onMounted(load)
 
 <template>
   <div class="page-container">
-    <h2 class="page-title">图片管理</h2>
+    <div class="page-intro"><div class="eyebrow">ADMIN · 内容审核</div><h2 class="page-title">图片管理</h2><p class="page-subtitle">审核公共图库内容并维护图片信息</p></div>
 
     <el-card class="toolbar-card" shadow="never">
       <div class="toolbar">
