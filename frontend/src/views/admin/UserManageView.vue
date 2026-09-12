@@ -76,9 +76,9 @@ onMounted(load)
 
 <template>
   <div class="page-container">
-    <h2 class="page-title">用户管理</h2>
+    <div class="page-intro"><div class="eyebrow">ADMIN · 用户管理</div><h2 class="page-title">用户管理</h2><p class="page-subtitle">维护用户状态、角色与会员信息</p></div>
 
-    <el-card class="manage-card">
+    <el-card class="manage-card mobile-table">
       <el-table v-loading="loading" :data="rows" stripe>
         <el-table-column label="头像" width="70">
           <template #default="{ row }">
@@ -131,6 +131,24 @@ onMounted(load)
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="mobile-list">
+        <div v-for="row in rows" :key="row.id" class="mobile-card">
+          <UserAvatar :user="row" :size="40" />
+          <div class="mobile-body">
+            <div class="mobile-title">{{ row.name }} <span class="muted">@{{ row.username }}</span></div>
+            <div class="mobile-meta">{{ row.email || '未填写邮箱' }}</div>
+            <div class="mobile-role">
+              <RoleTag :role="row.user_role" />
+              <el-select :model-value="row.user_role" size="small" style="width: 96px" @change="onRoleChange(row, $event as UserRole)">
+                <el-option label="用户" value="user" />
+                <el-option label="管理员" value="admin" />
+              </el-select>
+            </div>
+            <div class="mobile-meta">{{ oauthLabel(row) }} · {{ row.is_deleted ? '已停用' : '正常' }}{{ row.is_superuser ? ' · 超管' : '' }}</div>
+          </div>
+        </div>
+      </div>
 
       <div class="pagination-wrap">
         <el-pagination

@@ -17,6 +17,7 @@ from ...infrastructure.image_collab import (
     PictureEditMessageType,
     PictureEditRequestMessage,
     PictureEditResponseMessage,
+    PictureEditState,
     get_collab_broker,
     get_collab_lock,
     get_collab_manager,
@@ -81,7 +82,17 @@ async def collab_websocket(websocket: WebSocket, space_id: int, picture_id: int)
     user_id = session.user_id
 
     # 3. 入房；首个连接则为该房间订阅 broker 消费者
-    state, is_first = await manager.join(space_id, picture_id, websocket, {**brief, "can_edit": True}, can_edit=True)
+    # 用已落库的 edit_state 初始化房间状态，避免已保存的旋转/裁剪在刷新后收到默认态
+    persisted = picture.get("edit_state") or {}
+    initial_state = PictureEditState.model_validate(persisted)
+    state, is_first = await manager.join(
+        space_id,
+        picture_id,
+        websocket,
+        {**brief, "can_edit": True},
+        can_edit=True,
+        initial_state=initial_state,
+    )
     if is_first and broker is not None and broker.available and lock is not None:
         await broker.subscribe(
             space_id, picture_id, make_room_handler(manager, lock, space_id, picture_id, _persist_edit_state)
@@ -127,6 +138,14 @@ async def collab_websocket(websocket: WebSocket, space_id: int, picture_id: int)
             elif lock is not None:
                 # 降级回退：RabbitMQ 不可用时同步处理
                 await process_message(manager, lock, space_id, picture_id, user_id, brief, msg, _persist_edit_state)
+            else:
+                # 协同编辑未启用（锁不可用）：明确报错，避免静默丢消息
+                await websocket.send_json(
+                    PictureEditResponseMessage(
+                        type=PictureEditMessageType.ERROR,
+                        message="协同编辑功能当前不可用",
+                    ).model_dump(mode="json")
+                )
 
     except WebSocketDisconnect:
         pass

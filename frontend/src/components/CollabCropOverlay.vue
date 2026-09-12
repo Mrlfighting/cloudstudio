@@ -112,7 +112,8 @@ function onPointerUp() {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #f5f7fa;
+  background: #f7f8fb;
+  border-radius: var(--app-radius-md);
   user-select: none;
   cursor: crosshair;
   overflow: hidden;
@@ -126,8 +127,8 @@ function onPointerUp() {
 
 .crop-rect {
   position: absolute;
-  border: 2px solid #409eff;
-  background: rgba(64, 158, 255, 0.15);
+  border: 2px solid var(--app-primary);
+  background: rgba(236, 114, 150, 0.15);
   pointer-events: none;
 }
 </style>

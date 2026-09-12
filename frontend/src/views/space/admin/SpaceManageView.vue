@@ -126,7 +126,7 @@ onMounted(load)
 
 <template>
   <div class="page-container">
-    <h2 class="page-title">空间管理</h2>
+    <div class="page-intro"><div class="eyebrow">ADMIN · 空间管理</div><h2 class="page-title">空间管理</h2><p class="page-subtitle">查看空间配额、状态并处理异常空间</p></div>
 
     <el-card class="toolbar-card" shadow="never">
       <div class="toolbar">
@@ -167,7 +167,7 @@ onMounted(load)
       </div>
     </el-card>
 
-    <el-card class="table-card" shadow="never">
+    <el-card class="table-card mobile-table" shadow="never">
       <el-table v-loading="loading" :data="rows" stripe>
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="name" label="空间名称" min-width="140" show-overflow-tooltip />
@@ -213,6 +213,23 @@ onMounted(load)
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="mobile-list">
+        <div v-for="row in rows" :key="row.id" class="mobile-card">
+          <div class="mobile-body">
+            <div class="mobile-title">{{ row.name }} <span class="muted">#{{ row.id }}</span></div>
+            <div class="mobile-meta">用户 #{{ row.user_id }} · {{ spaceLevelLabel(row.space_level) }}</div>
+            <div class="mobile-meta">{{ formatBytes(row.total_size) }} / {{ formatBytes(row.max_size) }} · {{ row.total_count }}/{{ row.max_count }} 张</div>
+            <el-tag :type="row.status === 'active' ? 'success' : 'danger'" size="small">{{ row.status === 'active' ? '正常' : '已封禁' }}</el-tag>
+            <div class="mobile-actions">
+              <el-button link type="primary" size="small" @click="openDetail(row)">详情</el-button>
+              <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+              <el-button link :type="row.status === 'banned' ? 'success' : 'warning'" size="small" @click="onToggleBan(row)">{{ row.status === 'banned' ? '解封' : '封禁' }}</el-button>
+              <el-button link type="danger" size="small" @click="onDelete(row)">删除</el-button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div class="pagination-wrap">
         <el-pagination

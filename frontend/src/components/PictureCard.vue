@@ -22,6 +22,14 @@ const props = withDefaults(
 const shareVisible = ref(false)
 const outpaintVisible = ref(false)
 
+const thumbAspect = computed(() => {
+  const width = props.item.pic_width ?? 4
+  const height = props.item.pic_height ?? 3
+  const ratio = width / Math.max(height, 1)
+  // 用真实宽高比（夹紧到 [0.7, 1.5]，避免极端横/竖图），让卡片自然高度、消除底部留白
+  return Math.min(Math.max(ratio, 0.7), 1.5)
+})
+
 const detailRoute = computed(() => {
   if (props.kind === 'space') return `/spaces/pictures/${props.item.id}`
   if (props.kind === 'team') return `/spaces/team/${props.spaceId}/pictures/${props.item.id}`
@@ -30,7 +38,7 @@ const detailRoute = computed(() => {
 </script>
 
 <template>
-  <el-card class="pic-card" shadow="hover" :body-style="{ padding: '0' }">
+  <el-card class="pic-card" shadow="never" :body-style="{ padding: '0' }">
     <div class="thumb-wrap">
       <router-link :to="detailRoute" class="thumb-link">
         <el-image
@@ -50,6 +58,7 @@ const detailRoute = computed(() => {
         </el-image>
       </router-link>
 
+      <div class="thumb-overlay"></div>
       <div v-if="kind === 'space'" class="thumb-hover">
         <el-button
           size="small"
@@ -98,13 +107,15 @@ const detailRoute = computed(() => {
 
 <style scoped>
 .pic-card {
-  border-radius: 10px;
+  border-radius: var(--app-radius-md) !important;
   overflow: hidden;
-  transition: transform 0.2s;
+  transition: transform .24s ease, box-shadow .24s ease;
+  background: #fff;
 }
 
 .pic-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-5px);
+  box-shadow: 0 16px 32px rgba(38,42,52,.12) !important;
 }
 
 .thumb-wrap {
@@ -125,16 +136,21 @@ const detailRoute = computed(() => {
 
 .thumb-link {
   display: block;
-  height: 180px;
+  aspect-ratio: v-bind(thumbAspect);
+  min-height: 140px;
   overflow: hidden;
-  background: #f0f2f5;
+  background: linear-gradient(145deg,#f4f6fa,#eef3f8);
 }
 
 .thumb {
   width: 100%;
   height: 100%;
   display: block;
+  transition: transform .45s ease;
 }
+.pic-card:hover .thumb { transform: scale(1.045); }
+.thumb-overlay { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, transparent 55%, rgba(24,28,34,.2)); opacity: 0; transition: opacity .25s; }
+.pic-card:hover .thumb-overlay { opacity: 1; }
 
 .img-error {
   height: 100%;
@@ -148,7 +164,7 @@ const detailRoute = computed(() => {
 }
 
 .body {
-  padding: 12px 14px;
+  padding: 13px 16px 14px;
 }
 
 .name {
@@ -163,7 +179,7 @@ const detailRoute = computed(() => {
 }
 
 .name:hover {
-  color: #409eff;
+  color: var(--app-primary);
 }
 
 .tags {
@@ -171,13 +187,13 @@ const detailRoute = computed(() => {
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
-  min-height: 22px;
+  min-height: 20px;
 }
 
 .stats {
   display: flex;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: 12px;
   color: #909399;
 }
@@ -202,6 +218,8 @@ const detailRoute = computed(() => {
 }
 
 .share-btn:hover {
-  color: #409eff;
+  color: var(--app-primary);
 }
+@media (max-width: 900px) { .thumb-link { min-height: 150px; } }
+@media (max-width: 480px) { .thumb-link { min-height: 180px; } }
 </style>

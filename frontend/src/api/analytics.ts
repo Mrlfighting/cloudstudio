@@ -12,6 +12,7 @@ import type {
   SpacesOverview,
   StorageTrendPoint,
   TagStat,
+  TopUploader,
   TrendPoint,
 } from '@/types/analytics'
 
@@ -38,6 +39,13 @@ export const analyticsApi = {
   galleryTags(limit = 20): Promise<TagStat[]> {
     return http
       .get<TagStat[]>('/analytics/gallery/tags', { params: { limit } })
+      .then((r) => r.data)
+  },
+
+  /** 上传者排行 TOP N */
+  topUploaders(limit = 10): Promise<TopUploader[]> {
+    return http
+      .get<TopUploader[]>('/analytics/gallery/top-uploaders', { params: { limit } })
       .then((r) => r.data)
   },
 

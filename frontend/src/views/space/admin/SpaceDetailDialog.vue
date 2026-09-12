@@ -22,8 +22,16 @@ const countPercent = computed(() => {
 </script>
 
 <template>
-  <el-dialog v-model="visible" title="空间详情" width="520px">
+  <el-dialog v-model="visible" title="空间详情" width="520px" class="space-detail-dialog">
     <template v-if="space">
+      <div class="dialog-intro">
+        <div class="dialog-icon"><el-icon><FolderOpened /></el-icon></div>
+        <div>
+          <div class="dialog-kicker">SPACE OVERVIEW</div>
+          <div class="dialog-heading">{{ space.name }}</div>
+          <div class="dialog-subtitle">查看空间等级、状态与配额使用情况</div>
+        </div>
+      </div>
       <el-descriptions :column="1" border>
         <el-descriptions-item label="名称">{{ space.name }}</el-descriptions-item>
         <el-descriptions-item label="级别">
@@ -59,7 +67,11 @@ const countPercent = computed(() => {
 
 <style scoped>
 .quota {
-  margin-top: 16px;
+  margin-top: 20px;
+  padding: 16px 18px;
+  border: 1px solid var(--app-line-soft);
+  border-radius: var(--app-radius-md);
+  background: linear-gradient(135deg, #fbfdff, #fff7fa);
 }
 
 .quota-label {
@@ -72,4 +84,10 @@ const countPercent = computed(() => {
   font-size: 13px;
   color: #606266;
 }
+
+.dialog-intro { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.dialog-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 14px; color: #fff; background: linear-gradient(135deg, var(--app-blue), var(--app-primary)); box-shadow: 8px 8px 0 rgba(236,114,150,.12); }
+.dialog-kicker { color: #b16880; font-size: 10px; font-weight: 800; letter-spacing: 1.8px; }
+.dialog-heading { margin-top: 3px; font-size: 20px; font-weight: 800; color: var(--app-ink); }
+.dialog-subtitle { margin-top: 4px; color: var(--app-muted); font-size: 12px; }
 </style>

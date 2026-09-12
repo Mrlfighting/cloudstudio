@@ -59,10 +59,11 @@ const emit = defineEmits<{
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #e4e7ed;
-  border-radius: 10px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--app-line);
+  border-radius: 999px;
+  box-shadow: var(--app-shadow-soft);
+  backdrop-filter: blur(14px);
 }
 
 .status-row {
@@ -75,15 +76,15 @@ const emit = defineEmits<{
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #909399;
+  color: var(--app-muted);
 }
 
 .editing-hint.self {
-  color: #409eff;
+  color: #b85a78;
 }
 
 .editing-hint.idle {
-  color: #c0c4cc;
+  color: #b5bbc5;
 }
 
 .btn-row {

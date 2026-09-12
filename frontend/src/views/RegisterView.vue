@@ -68,8 +68,12 @@ async function handleRegister() {
 
 <template>
   <div class="auth-page">
+    <div class="auth-decoration" aria-hidden="true"><span></span><i></i><b></b></div>
     <el-card class="auth-card">
-      <template #header>注册</template>
+      <template #header>
+        <div class="auth-heading">创建你的空间</div>
+        <div class="auth-kicker">加入云上工坊，收藏每一份灵感</div>
+      </template>
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent>
         <el-form-item label="账号" prop="account">
           <el-input v-model="form.account" placeholder="2-20 位小写字母或数字" clearable />

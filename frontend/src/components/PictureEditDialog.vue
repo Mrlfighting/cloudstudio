@@ -93,7 +93,15 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <el-dialog v-model="visible" title="编辑图片" width="520px">
+  <el-dialog v-model="visible" title="编辑图片" width="520px" class="picture-edit-dialog">
+    <div class="dialog-intro">
+      <div class="dialog-icon"><el-icon><EditPen /></el-icon></div>
+      <div>
+        <div class="dialog-kicker">PICTURE DETAILS</div>
+        <div class="dialog-heading">完善图片信息</div>
+        <div class="dialog-subtitle">更新标题、分类、简介与标签</div>
+      </div>
+    </div>
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
       <el-form-item label="名称" prop="name">
         <el-input v-model="form.name" maxlength="128" show-word-limit />
@@ -131,3 +139,11 @@ async function handleSubmit() {
     </template>
   </el-dialog>
 </template>
+
+<style scoped>
+.dialog-intro { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.dialog-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 14px; color: #fff; background: linear-gradient(135deg, var(--app-blue), var(--app-lavender)); box-shadow: 8px 8px 0 rgba(159,220,244,.22); }
+.dialog-kicker { color: #6f7ea0; font-size: 10px; font-weight: 800; letter-spacing: 1.8px; }
+.dialog-heading { margin-top: 3px; font-size: 20px; font-weight: 800; color: var(--app-ink); }
+.dialog-subtitle { margin-top: 4px; color: var(--app-muted); font-size: 12px; }
+</style>

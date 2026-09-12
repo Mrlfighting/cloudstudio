@@ -97,49 +97,112 @@ async function handleSubmit() {
 
 <template>
   <div class="page-container">
-    <h2 class="page-title">编辑资料</h2>
+    <div class="page-intro"><div class="eyebrow">ACCOUNT · 账号设置</div><h2 class="page-title">编辑资料</h2><p class="page-subtitle">更新你的公开资料和头像信息</p></div>
 
-    <el-card class="edit-card">
-      <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-        <el-form-item label="昵称" prop="name">
-          <el-input v-model="form.name" placeholder="请输入昵称" maxlength="30" show-word-limit />
-        </el-form-item>
-        <el-form-item label="用户名" prop="username">
-          <el-input
-            v-model="form.username"
-            placeholder="2-20 位小写字母或数字"
-            maxlength="20"
-            show-word-limit
-          />
-        </el-form-item>
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="form.email" placeholder="选填" clearable />
-        </el-form-item>
-        <el-form-item label="头像地址" prop="profile_image_url">
-          <el-input v-model="form.profile_image_url" placeholder="https://..." clearable />
-        </el-form-item>
-        <el-form-item label="简介" prop="user_profile">
-          <el-input
-            v-model="form.user_profile"
-            type="textarea"
-            :rows="3"
-            maxlength="512"
-            show-word-limit
-            placeholder="介绍一下自己吧"
-          />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :loading="loading" @click="handleSubmit">保存</el-button>
-          <el-button @click="router.push('/profile')">取消</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+    <div class="edit-layout">
+      <el-card class="edit-card">
+        <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+          <el-form-item label="昵称" prop="name">
+            <el-input v-model="form.name" placeholder="请输入昵称" maxlength="30" show-word-limit />
+          </el-form-item>
+          <el-form-item label="用户名" prop="username">
+            <el-input
+              v-model="form.username"
+              placeholder="2-20 位小写字母或数字"
+              maxlength="20"
+              show-word-limit
+            />
+          </el-form-item>
+          <el-form-item label="邮箱" prop="email">
+            <el-input v-model="form.email" placeholder="选填" clearable />
+          </el-form-item>
+          <el-form-item label="头像地址" prop="profile_image_url">
+            <el-input v-model="form.profile_image_url" placeholder="https://..." clearable />
+          </el-form-item>
+          <el-form-item label="简介" prop="user_profile">
+            <el-input
+              v-model="form.user_profile"
+              type="textarea"
+              :rows="3"
+              maxlength="512"
+              show-word-limit
+              placeholder="介绍一下自己吧"
+            />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" :loading="loading" @click="handleSubmit">保存</el-button>
+            <el-button @click="router.push('/profile')">取消</el-button>
+          </el-form-item>
+        </el-form>
+      </el-card>
+
+      <aside class="profile-side">
+        <div class="avatar-preview">
+          <el-avatar :size="72" :src="form.profile_image_url || undefined">{{ form.name.charAt(0) || 'U' }}</el-avatar>
+          <div class="side-copy">
+            <div class="side-name">{{ form.name || '—' }}</div>
+            <div class="side-username">@{{ form.username }}</div>
+          </div>
+        </div>
+        <el-tag size="small" :type="auth.user?.user_role === 'admin' ? 'danger' : 'info'" effect="plain">
+          {{ auth.user?.user_role === 'admin' ? '管理员' : '普通用户' }}
+        </el-tag>
+        <p class="side-note">头像地址留空时，将使用昵称首字母作为头像展示。</p>
+      </aside>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.edit-layout {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(260px, 360px);
+  gap: 20px;
+  align-items: start;
+}
+
 .edit-card {
-  max-width: 640px;
-  border-radius: 10px;
+  border-radius: var(--app-radius-lg);
+}
+
+.profile-side {
+  display: grid;
+  gap: 16px;
+  padding: 24px 26px;
+  border: 1px solid var(--app-line);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow-soft);
+}
+
+.avatar-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.side-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--app-ink);
+}
+
+.side-username {
+  margin-top: 4px;
+  color: var(--app-muted);
+  font-size: 13px;
+}
+
+.side-note {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+@media (max-width: 760px) {
+  .edit-layout {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

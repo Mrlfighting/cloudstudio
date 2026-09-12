@@ -37,6 +37,14 @@ export interface TagStat {
   count: number
 }
 
+/** 上传者排行项 */
+export interface TopUploader {
+  user_id: number
+  name: string | null
+  username: string
+  count: number
+}
+
 /** 空间大盘（管理员） */
 export interface SpacesOverview {
   total_spaces: number

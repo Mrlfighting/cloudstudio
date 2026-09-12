@@ -219,7 +219,12 @@ function resetForm() {
   object-fit: contain;
   display: block;
   margin: 0 auto;
+  border-radius: var(--app-radius-md);
 }
+
+:deep(.el-upload-dragger) { border: 1px dashed #e7b6c5; border-radius: var(--app-radius-md); background: #fff9fb; transition: .2s; }
+:deep(.el-upload-dragger:hover) { border-color: var(--app-primary); background: var(--app-primary-soft); }
+:deep(.el-upload__text em) { color: #b85a78; font-style: normal; font-weight: 700; }
 
 .crop-row {
   display: flex;

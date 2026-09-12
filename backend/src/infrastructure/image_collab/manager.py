@@ -46,12 +46,24 @@ class RoomManager:
         return room
 
     async def join(
-        self, space_id: int, picture_id: int, ws: WebSocket, user: dict[str, Any], can_edit: bool
+        self,
+        space_id: int,
+        picture_id: int,
+        ws: WebSocket,
+        user: dict[str, Any],
+        can_edit: bool,
+        initial_state: PictureEditState | None = None,
     ) -> tuple[PictureEditState, bool]:
-        """加入房间；返回 (当前编辑状态, 是否为该房间首个连接)。"""
+        """加入房间；返回 (当前编辑状态, 是否为该房间首个连接)。
+
+        首次创建房间时，可用 ``initial_state``（来自落库 ``pictures.edit_state``）初始化编辑状态，
+        避免已保存的旋转/裁剪在刷新后新连接收到默认态。
+        """
         key = self._key(space_id, picture_id)
         is_first = key not in self._rooms
         room = self._get_or_create_room(key)
+        if is_first and initial_state is not None:
+            room.state = initial_state
         room.connections[ws] = {
             "user_id": user["id"],
             "name": user.get("name"),

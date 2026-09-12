@@ -171,7 +171,8 @@ onBeforeUnmount(destroyCropper)
 .cropper-container {
   width: 100%;
   height: 400px;
-  background: #f0f2f5;
+  background: #f7f8fb;
+  border-radius: var(--app-radius-md);
 }
 
 .cropper-container img {

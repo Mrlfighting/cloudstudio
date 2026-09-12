@@ -39,6 +39,27 @@ async def test_join_leave_returns_flags(manager: RoomManager):
 
 
 @pytest.mark.asyncio
+async def test_join_initializes_room_state(manager: RoomManager):
+    """首次建房时用 initial_state 初始化房间状态（已保存的旋转/裁剪不被默认态覆盖）。"""
+    ws = _ws()
+    initial = PictureEditState(rotation=90, crop=None)
+    state, is_first = await manager.join(1, 1, ws, {"id": 100}, can_edit=True, initial_state=initial)
+    assert is_first is True
+    assert state.rotation == 90
+    assert manager.get_state(1, 1).rotation == 90
+
+
+@pytest.mark.asyncio
+async def test_join_second_connection_keeps_existing_state(manager: RoomManager):
+    """非首个连接不应覆盖已存在的房间状态。"""
+    ws1 = _ws()
+    ws2 = _ws()
+    await manager.join(1, 1, ws1, {"id": 100}, can_edit=True, initial_state=PictureEditState(rotation=90))
+    state2, _ = await manager.join(1, 1, ws2, {"id": 200}, can_edit=True, initial_state=PictureEditState(rotation=0))
+    assert state2.rotation == 90  # 保持首次建房的状态
+
+
+@pytest.mark.asyncio
 async def test_update_and_get_state(manager: RoomManager):
     ws = _ws()
     await manager.join(1, 1, ws, {"id": 100}, can_edit=True)

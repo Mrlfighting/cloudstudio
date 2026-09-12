@@ -8,6 +8,8 @@ import { useRouter } from 'vue-router'
 import { spaceApi } from '@/api/space'
 import { getErrorMessage } from '@/api/http'
 import { formatBytes, spaceLevelLabel, type SpaceInfoRead } from '@/types/space'
+import type { PictureListItemRead } from '@/types/picture'
+import PictureCard from '@/components/PictureCard.vue'
 import SpaceLevelDialog from './SpaceLevelDialog.vue'
 
 const router = useRouter()
@@ -15,6 +17,7 @@ const router = useRouter()
 const loading = ref(false)
 const notFound = ref(false)
 const space = ref<SpaceInfoRead | null>(null)
+const recent = ref<PictureListItemRead[]>([])
 const levelVisible = ref(false)
 
 function capacityPercent(): number {
@@ -30,6 +33,7 @@ function countPercent(): number {
 async function load() {
   loading.value = true
   notFound.value = false
+  recent.value = []
   try {
     space.value = await spaceApi.getMy()
   } catch (err) {
@@ -42,6 +46,16 @@ async function load() {
   } finally {
     loading.value = false
   }
+
+  // 有空间时加载「最近上传」，失败不阻塞主页
+  if (space.value) {
+    try {
+      const res = await spaceApi.listPictures({ page: 1, items_per_page: 8, sort: 'time' })
+      recent.value = res.data
+    } catch {
+      recent.value = []
+    }
+  }
 }
 
 onMounted(load)
@@ -49,7 +63,13 @@ onMounted(load)
 
 <template>
   <div class="page-container">
-    <h2 class="page-title">我的空间</h2>
+    <div class="hero-row">
+      <div>
+        <div class="eyebrow">PRIVATE SPACE · 私人工作台</div>
+        <h2 class="page-title">我的空间</h2>
+        <p class="page-subtitle">管理你的私藏灵感与创作资产</p>
+      </div>
+    </div>
 
     <el-skeleton v-if="loading" :rows="6" animated />
 
@@ -111,6 +131,16 @@ onMounted(load)
       </div>
     </el-card>
 
+    <section v-if="space && recent.length" class="recent-section">
+      <div class="recent-head">
+        <h3>最近上传</h3>
+        <el-button link type="primary" @click="router.push('/spaces/gallery')">查看全部</el-button>
+      </div>
+      <div class="masonry">
+        <PictureCard v-for="item in recent" :key="item.id" :item="item" kind="space" />
+      </div>
+    </section>
+
     <SpaceLevelDialog
       v-model="levelVisible"
       :current-level="space?.space_level ?? 0"
@@ -121,8 +151,25 @@ onMounted(load)
 
 <style scoped>
 .space-card {
-  border-radius: 10px;
-  max-width: 720px;
+  border-radius: var(--app-radius-lg) !important;
+}
+
+.recent-section {
+  margin-top: 28px;
+}
+
+.recent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.recent-head h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--app-ink);
 }
 
 .space-header {
@@ -134,8 +181,8 @@ onMounted(load)
 }
 
 .space-name {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 800;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -155,8 +202,12 @@ onMounted(load)
 .quota-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 18px;
 }
+.quota-item { padding: 18px; border-radius: var(--app-radius-md); background: #fbfcfe; border: 1px solid var(--app-line-soft); }
+.eyebrow { color: #b16880; font-size: 11px; font-weight: 800; letter-spacing: 2px; margin-bottom: 10px; }
+.page-title { margin-bottom: 0; }
+.page-subtitle { margin: 10px 0 20px; color: var(--app-muted); font-size: 15px; }
 
 .quota-label {
   font-weight: 600;

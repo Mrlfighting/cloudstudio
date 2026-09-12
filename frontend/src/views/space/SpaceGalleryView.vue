@@ -70,7 +70,7 @@ onMounted(load)
 <template>
   <div class="page-container">
     <div class="gallery-header">
-      <h2 class="page-title">我的空间图册</h2>
+      <div><div class="eyebrow">PRIVATE GALLERY · 私人图册</div><h2 class="page-title">我的空间图册</h2><p class="page-subtitle">管理私有图片，使用 AI 工具继续创作</p></div>
       <div class="header-actions">
         <el-button @click="router.push('/spaces')">返回空间</el-button>
         <el-button :icon="'Brush'" @click="colorSearchVisible = true">按颜色搜索</el-button>
@@ -108,11 +108,13 @@ onMounted(load)
       </div>
     </el-card>
 
-    <div v-loading="loading" class="grid">
+    <div v-loading="loading" class="masonry">
       <PictureCard v-for="item in rows" :key="item.id" :item="item" kind="space" />
     </div>
 
-    <el-empty v-if="!loading && rows.length === 0" description="暂无图片" />
+    <el-empty v-if="!loading && rows.length === 0" description="暂无图片，上传你的第一张图片吧">
+      <el-button type="primary" :icon="'Upload'" @click="uploadVisible = true">上传图片</el-button>
+    </el-empty>
 
     <div v-if="pagination.total > 0" class="pagination-wrap">
       <el-pagination
@@ -170,6 +172,7 @@ onMounted(load)
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
+  align-items: start;
   min-height: 120px;
 }
 
