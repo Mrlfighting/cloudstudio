@@ -237,7 +237,8 @@ onMounted(load)
 .hero-input :deep(.el-input__wrapper) { box-shadow: none !important; background: transparent; padding: 0; }
 .hero-input :deep(.el-input__inner) { font-size: 15px; }
 .search-shortcut { padding: 5px 8px; color: #a1a7b0; background: #f3f4f7; border-radius: 6px; font-size: 11px; }
-.search-submit { width: 42px; height: 42px; border: 0; color: #fff; background: var(--app-ink); border-radius: 12px; }
+.search-submit { width: 42px; height: 42px; border: 0; color: #fff; background: linear-gradient(135deg, var(--app-blue), var(--app-primary)); border-radius: 12px; box-shadow: 0 8px 18px rgba(236, 114, 150, 0.3); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.search-submit:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(236, 114, 150, 0.42); }
 .hero-meta { position: relative; z-index: 1; display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 18px; color: #9298a3; font-size: 12px; }
 .hero-meta strong { color: #4f5661; }
 .meta-separator { width: 4px; height: 4px; border-radius: 50%; background: #cad0d8; }
