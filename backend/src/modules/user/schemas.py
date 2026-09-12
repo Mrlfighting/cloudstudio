@@ -181,6 +181,14 @@ class UserRoleUpdate(BaseModel):
     user_role: Literal["user", "admin"]
 
 
+class UserSearchItem(BaseModel):
+    """用户搜索结果项（供团队邀请等场景，仅含必要字段，不泄露邮箱等敏感信息）。"""
+
+    id: int
+    username: str
+    name: str
+
+
 class UserDelete(BaseModel):
     """Schema for soft-deleting a user."""
 

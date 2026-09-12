@@ -64,6 +64,13 @@ export interface ChangeRolePayload {
   user_role: UserRole
 }
 
+/** 用户搜索结果项（GET /users/search） */
+export interface UserSearchItem {
+  id: number
+  username: string
+  name: string
+}
+
 /** 分页响应（fastcrud paginated_response 结构） */
 export interface PaginatedResponse<T> {
   data: T[]

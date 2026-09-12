@@ -9,6 +9,7 @@ import type {
   UpdateProfilePayload,
   UserRead,
   UserRole,
+  UserSearchItem,
 } from '@/types/user'
 
 export const userApi = {
@@ -35,5 +36,12 @@ export const userApi = {
   changeRole(username: string, userRole: UserRole): Promise<MessageResponse> {
     const payload: ChangeRolePayload = { user_role: userRole }
     return http.patch<MessageResponse>(`/users/${username}/role`, payload).then((r) => r.data)
+  },
+
+  /** 按用户名或昵称模糊搜索用户（供团队邀请等场景） */
+  searchUsers(keyword: string): Promise<UserSearchItem[]> {
+    return http
+      .get<UserSearchItem[]>('/users/search', { params: { keyword } })
+      .then((r) => r.data)
   },
 }

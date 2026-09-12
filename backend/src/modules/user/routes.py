@@ -1,6 +1,6 @@
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastcrud import PaginatedListResponse, compute_offset, paginated_response
 
 from ...infrastructure.auth.http_exceptions import HTTPException
@@ -16,6 +16,7 @@ from .schemas import (
     UserRead,
     UserRegister,
     UserRoleUpdate,
+    UserSearchItem,
     UserTierUpdate,
     UserUpdate,
 )
@@ -142,6 +143,26 @@ async def get_current_user_profile(
 ) -> dict[str, Any]:
     """Get current authenticated user's profile."""
     return current_user
+
+
+@router.get(
+    "/search",
+    response_model=list[UserSearchItem],
+    summary="按用户名或昵称搜索用户（登录用户）",
+    description="""
+           供团队邀请等场景：按 username 或 name 模糊匹配（不区分大小写），
+           仅返回 id / username / name，不泄露邮箱等敏感信息。
+           """,
+)
+async def search_users(
+    db: AsyncSessionDep,
+    user_service: UserServiceDep,
+    _: CurrentUserDep,
+    keyword: str = Query(min_length=1, max_length=30),
+    limit: int = Query(20, ge=1, le=50),
+) -> list[dict[str, Any]]:
+    """模糊搜索用户（登录用户）。"""
+    return await user_service.search_users(db, keyword, limit)
 
 
 @router.get(

@@ -4,6 +4,7 @@ from typing import Any, cast
 from crudauth import get_password_hash
 from fastcrud import JoinConfig
 from fastcrud.types import GetMultiResponseDict
+from sqlalchemy import or_, select
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -194,6 +195,30 @@ class UserService:
         if not user:
             raise UserNotFoundError(f"User with username '{username}' not found")
         return user
+
+    async def search_users(self, db: AsyncSession, keyword: str, limit: int = 20) -> list[dict[str, Any]]:
+        """按用户名或昵称模糊搜索用户（供团队邀请等场景）。
+
+        Args:
+            db: 数据库会话。
+            keyword: 搜索关键字（匹配 username 或 name，不区分大小写）。
+            limit: 返回条数上限。
+
+        Returns:
+            仅含 ``id`` / ``username`` / ``name`` 的字典列表，不泄露邮箱等敏感信息。
+        """
+        pattern = f"%{keyword}%"
+        stmt = (
+            select(User)
+            .where(
+                User.is_deleted == False,  # noqa: E712
+                or_(User.username.ilike(pattern), User.name.ilike(pattern)),
+            )
+            .order_by(User.id)
+            .limit(limit)
+        )
+        users = (await db.execute(stmt)).scalars().all()
+        return [{"id": u.id, "username": u.username, "name": u.name} for u in users]
 
     async def get_active_and_inactive_by_username(self, username: str, db: AsyncSession) -> dict[str, Any]:
         """Retrieve a user by username.

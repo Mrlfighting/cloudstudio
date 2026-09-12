@@ -17,6 +17,7 @@ import type {
   SpacesOverview,
   StorageTrendPoint,
   TagStat,
+  TopUploader,
   TrendPoint,
 } from '@/types/analytics'
 import BaseChart from '@/components/BaseChart.vue'
@@ -35,6 +36,7 @@ const tags = ref<TagStat[]>([])
 const trend = ref<TrendPoint[]>([])
 const storageTrend = ref<StorageTrendPoint[]>([])
 const ranking = ref<SpaceRankItem[]>([])
+const topUploaders = ref<TopUploader[]>([])
 
 const granularity = ref<Granularity>('day')
 const rankingSort = ref<'count' | 'size'>('count')
@@ -42,7 +44,7 @@ const rankingSort = ref<'count' | 'size'>('count')
 async function loadAll() {
   loading.value = true
   try {
-    const [overview, spaces, cat, tagList, trendList, storageList, rankingList] = await Promise.all([
+    const [overview, spaces, cat, tagList, trendList, storageList, rankingList, topUploaderList] = await Promise.all([
       analyticsApi.galleryOverview(),
       analyticsApi.spacesOverview(),
       analyticsApi.galleryCategory(),
@@ -50,6 +52,7 @@ async function loadAll() {
       analyticsApi.galleryTrend(granularity.value),
       analyticsApi.galleryStorageTrend(granularity.value),
       analyticsApi.spacesRanking(10, rankingSort.value),
+      analyticsApi.topUploaders(10),
     ])
     galleryOverview.value = overview
     spacesOverview.value = spaces
@@ -58,6 +61,7 @@ async function loadAll() {
     trend.value = trendList
     storageTrend.value = storageList
     ranking.value = rankingList
+    topUploaders.value = topUploaderList
   } catch (err) {
     ElMessage.error(getErrorMessage(err, '获取分析数据失败'))
   } finally {
@@ -161,6 +165,25 @@ const rankingOption = computed<EChartsOption>(() => {
     series: [{ type: 'bar', data, barMaxWidth: 24, label: { show: true, position: 'right' } }],
   }
 })
+
+const topUploadersOption = computed<EChartsOption>(() => ({
+  tooltip: { trigger: 'axis' },
+  grid: { left: 130, right: 40, top: 10, bottom: 30 },
+  xAxis: { type: 'value', name: '上传数', minInterval: 1 },
+  yAxis: {
+    type: 'category',
+    data: topUploaders.value.map((u) => u.name || u.username),
+    inverse: true,
+  },
+  series: [
+    {
+      type: 'bar',
+      data: topUploaders.value.map((u) => u.count),
+      barMaxWidth: 24,
+      label: { show: true, position: 'right' },
+    },
+  ],
+}))
 
 onMounted(loadAll)
 
@@ -268,6 +291,13 @@ const adminShortcuts = [
         <BaseChart v-if="ranking.length" :option="rankingOption" />
         <el-empty v-else description="暂无空间数据" />
       </div>
+    </el-card>
+
+    <!-- 上传者排行 -->
+    <el-card class="chart-card" shadow="never">
+      <template #header><span>上传者排行 TOP 10</span></template>
+      <BaseChart v-if="topUploaders.length" :option="topUploadersOption" />
+      <el-empty v-else description="暂无上传数据" />
     </el-card>
 
     <!-- 存储增长趋势 -->
