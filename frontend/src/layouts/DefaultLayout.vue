@@ -118,10 +118,14 @@ async function handleLogout() {
 .brand-copy small { margin-top: 4px; color: var(--app-muted); font-size: 8px; letter-spacing: 2px; }
 .nav {
   flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
   border-bottom: none;
   background: transparent;
 }
-.nav :deep(.el-menu-item) { height: 72px; border-bottom: 2px solid transparent; color: var(--app-text); font-weight: 600; gap: 5px; }
+.nav::-webkit-scrollbar { display: none; }
+.nav :deep(.el-menu-item) { flex-shrink: 0; white-space: nowrap; height: 72px; border-bottom: 2px solid transparent; color: var(--app-text); font-weight: 600; gap: 5px; }
 .nav :deep(.el-menu-item:hover) { color: var(--app-primary-dark); background: transparent; }
 .nav :deep(.el-menu-item.is-active) { color: var(--app-primary-dark); border-bottom-color: var(--app-primary); }
 
@@ -147,11 +151,13 @@ async function handleLogout() {
 .main {
   padding: 0;
 }
-@media (max-width: 900px) {
+@media (max-width: 1280px) {
   .header-inner { gap: 16px; }
-  .nav { overflow-x: auto; }
-  .nav :deep(.el-menu-item) { padding: 0 10px; font-size: 13px; }
+  .nav :deep(.el-menu-item) { padding: 0 12px; font-size: 13px; }
   .user-name { display: none; }
+}
+@media (max-width: 900px) {
+  .nav :deep(.el-menu-item) { padding: 0 10px; }
 }
 @media (max-width: 560px) {
   .header { padding: 0 14px; }

@@ -202,12 +202,6 @@ onMounted(loadAll)
 </template>
 
 <style scoped>
-.dashboard-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

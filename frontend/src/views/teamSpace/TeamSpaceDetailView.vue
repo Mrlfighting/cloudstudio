@@ -180,7 +180,7 @@ onMounted(async () => {
             <el-button v-if="team.canWrite" type="primary" :icon="'Upload'" @click="uploadVisible = true">上传图片</el-button>
           </div>
 
-          <div v-loading="picLoading" class="grid">
+          <div v-loading="picLoading" class="masonry">
             <PictureCard
               v-for="item in rows"
               :key="item.id"
@@ -189,7 +189,9 @@ onMounted(async () => {
               :space-id="spaceId"
             />
           </div>
-          <el-empty v-if="!picLoading && rows.length === 0" description="暂无图片" />
+          <el-empty v-if="!picLoading && rows.length === 0" description="暂无图片">
+            <el-button v-if="team.canWrite" type="primary" :icon="'Upload'" @click="uploadVisible = true">上传图片</el-button>
+          </el-empty>
 
           <div v-if="picPagination.total > 0" class="pagination-wrap">
             <el-pagination
@@ -320,6 +322,7 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
+  align-items: start;
   min-height: 120px;
 }
 

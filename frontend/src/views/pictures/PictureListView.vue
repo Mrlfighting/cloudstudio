@@ -124,9 +124,8 @@ onMounted(load)
       <div class="content-area">
         <div class="content-toolbar">
           <div class="toolbar-tabs">
-            <button class="tab active">推荐</button>
-            <button class="tab" @click="filters.sort = 'time'; resetAndLoad()">最新上传</button>
-            <button class="tab" @click="filters.sort = 'popularity'; resetAndLoad()">热门精选</button>
+            <button class="tab" :class="{ active: filters.sort === 'time' }" @click="filters.sort = 'time'; resetAndLoad()">最新上传</button>
+            <button class="tab" :class="{ active: filters.sort === 'popularity' }" @click="filters.sort = 'popularity'; resetAndLoad()">热门精选</button>
           </div>
           <div class="toolbar-actions">
             <span class="result-count">共 {{ pagination.total.toLocaleString() }} 张图片</span>
@@ -142,10 +141,12 @@ onMounted(load)
           <button v-for="c in PICTURE_CATEGORIES.slice(0, 6)" :key="c" class="chip" :class="{ active: filters.category === c }" @click="filters.category = c; resetAndLoad()">{{ c }}</button>
         </div>
 
-        <div v-loading="loading" class="grid">
+        <div v-loading="loading" class="masonry">
           <PictureCard v-for="item in rows" :key="item.id" :item="item" />
         </div>
-        <el-empty v-if="!loading && rows.length === 0" description="暂无图片，试试调整筛选条件" />
+        <el-empty v-if="!loading && rows.length === 0" description="暂无图片，试试调整筛选条件">
+          <el-button type="primary" :icon="'Upload'" @click="uploadVisible = true">上传第一张图片</el-button>
+        </el-empty>
         <div v-if="pagination.total > 0" class="pagination-wrap">
           <el-pagination
             v-model:current-page="pagination.page"
@@ -203,13 +204,6 @@ onMounted(load)
 
 .category {
   width: 160px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
-  min-height: 120px;
 }
 
 .pagination-wrap {
@@ -280,7 +274,7 @@ onMounted(load)
 .chip-row::-webkit-scrollbar { display: none; }
 .chip { flex: 0 0 auto; padding: 8px 12px; border: 1px solid var(--app-line); border-radius: 999px; background: #fff; color: #737b86; font-size: 12px; cursor: pointer; }
 .chip:hover, .chip.active { color: var(--app-ink); border-color: #d0d5dd; box-shadow: 0 3px 8px rgba(46,50,60,.05); }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; min-height: 120px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; align-items: start; min-height: 120px; }
 @media (max-width: 1080px) { .workspace { gap: 22px; } .sidebar { width: 190px; flex-basis: 190px; } .grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); } }
 @media (max-width: 760px) {
   .explore-hero { min-height: 385px; padding: 56px 18px 36px; }

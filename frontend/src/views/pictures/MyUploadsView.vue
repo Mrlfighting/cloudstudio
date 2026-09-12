@@ -78,7 +78,7 @@ onMounted(load)
       </div>
     </el-card>
 
-    <el-card class="table-card" shadow="never">
+    <el-card class="table-card mobile-table" shadow="never">
       <el-table v-loading="loading" :data="rows" stripe>
         <el-table-column label="缩略图" width="90">
           <template #default="{ row }">
@@ -114,6 +114,18 @@ onMounted(load)
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="mobile-list">
+        <div v-for="row in rows" :key="row.id" class="mobile-card">
+          <el-image :src="row.url" fit="cover" class="mobile-thumb" :preview-src-list="[row.url]" preview-teleported />
+          <div class="mobile-body">
+            <div class="mobile-title">{{ row.name }}</div>
+            <div class="mobile-meta">{{ row.category || '未分类' }} · 下载 {{ row.download_count }}</div>
+            <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+            <div v-if="row.review_reason" class="mobile-reason">拒绝理由：{{ row.review_reason }}</div>
+          </div>
+        </div>
+      </div>
 
       <el-empty v-if="!loading && rows.length === 0" description="还没有上传过图片" />
 

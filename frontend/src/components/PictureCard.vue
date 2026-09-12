@@ -26,11 +26,8 @@ const thumbAspect = computed(() => {
   const width = props.item.pic_width ?? 4
   const height = props.item.pic_height ?? 3
   const ratio = width / Math.max(height, 1)
-  if (ratio >= 1.8) return '16 / 9'
-  if (ratio >= 1.35) return '4 / 3'
-  if (ratio >= 1.05) return '1 / 1'
-  if (ratio >= 0.85) return '5 / 6'
-  return '4 / 5'
+  // 用真实宽高比（夹紧到 [0.7, 1.5]，避免极端横/竖图），让卡片自然高度、消除底部留白
+  return Math.min(Math.max(ratio, 0.7), 1.5)
 })
 
 const detailRoute = computed(() => {
@@ -140,7 +137,7 @@ const detailRoute = computed(() => {
 .thumb-link {
   display: block;
   aspect-ratio: v-bind(thumbAspect);
-  min-height: 180px;
+  min-height: 140px;
   overflow: hidden;
   background: linear-gradient(145deg,#f4f6fa,#eef3f8);
 }
@@ -167,7 +164,7 @@ const detailRoute = computed(() => {
 }
 
 .body {
-  padding: 14px 16px 15px;
+  padding: 13px 16px 14px;
 }
 
 .name {
@@ -182,21 +179,21 @@ const detailRoute = computed(() => {
 }
 
 .name:hover {
-  color: #409eff;
+  color: var(--app-primary);
 }
 
 .tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 10px;
-  min-height: 22px;
+  margin-top: 8px;
+  min-height: 20px;
 }
 
 .stats {
   display: flex;
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 10px;
   font-size: 12px;
   color: #909399;
 }
@@ -223,6 +220,6 @@ const detailRoute = computed(() => {
 .share-btn:hover {
   color: var(--app-primary);
 }
-@media (max-width: 900px) { .thumb-link { min-height: 170px; } }
-@media (max-width: 480px) { .thumb-link { min-height: 220px; } }
+@media (max-width: 900px) { .thumb-link { min-height: 150px; } }
+@media (max-width: 480px) { .thumb-link { min-height: 180px; } }
 </style>

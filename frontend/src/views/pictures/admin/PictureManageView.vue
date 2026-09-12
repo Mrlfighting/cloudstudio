@@ -201,7 +201,7 @@ onMounted(load)
       </div>
     </el-card>
 
-    <el-card class="table-card" shadow="never">
+    <el-card class="table-card mobile-table" shadow="never">
       <el-table v-loading="loading" :data="rows" stripe>
         <el-table-column label="缩略图" width="90">
           <template #default="{ row }">
@@ -267,6 +267,26 @@ onMounted(load)
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="mobile-list">
+        <div v-for="row in rows" :key="row.id" class="mobile-card">
+          <el-image :src="row.url" fit="cover" class="mobile-thumb" :preview-src-list="[row.url]" preview-teleported />
+          <div class="mobile-body">
+            <div class="mobile-title">{{ row.name }} <span class="muted">#{{ row.id }}</span></div>
+            <div class="mobile-meta">{{ row.category || '未分类' }} · {{ row.pic_format }}</div>
+            <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+            <div v-if="row.review_reason" class="mobile-meta">拒绝理由：{{ row.review_reason }}</div>
+            <div class="mobile-actions">
+              <template v-if="row.status === 'pending'">
+                <el-button link type="success" size="small" @click="onAudit(row, 'approved')">通过</el-button>
+                <el-button link type="danger" size="small" @click="onAudit(row, 'rejected')">拒绝</el-button>
+              </template>
+              <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+              <el-button link type="danger" size="small" @click="onDelete(row)">删除</el-button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div class="pagination-wrap">
         <el-pagination

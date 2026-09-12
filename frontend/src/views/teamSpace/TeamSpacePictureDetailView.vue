@@ -198,10 +198,10 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="detail-nav-pills">
-          <span class="detail-nav-pill">团队空间</span>
+          <router-link to="/spaces/team" class="detail-nav-pill">团队空间</router-link>
           <span class="detail-nav-pill is-active">详情页</span>
-          <span class="detail-nav-pill">公共图库</span>
-          <span class="detail-nav-pill">个人空间</span>
+          <router-link to="/pictures" class="detail-nav-pill">公共图库</router-link>
+          <router-link to="/spaces" class="detail-nav-pill">个人空间</router-link>
         </div>
       </div>
 
