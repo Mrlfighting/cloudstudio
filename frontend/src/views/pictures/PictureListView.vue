@@ -10,6 +10,7 @@ import { getErrorMessage } from '@/api/http'
 import { PICTURE_CATEGORIES, type PictureListItemRead, type PictureSort } from '@/types/picture'
 import PictureCard from '@/components/PictureCard.vue'
 import PictureUploadDialog from '@/components/PictureUploadDialog.vue'
+import SiteFooter from '@/components/SiteFooter.vue'
 
 const router = useRouter()
 
@@ -161,6 +162,9 @@ onMounted(load)
         </div>
       </div>
     </section>
+
+    <SiteFooter />
+
     <PictureUploadDialog v-model="uploadVisible" @success="load" />
   </div>
 </template>
