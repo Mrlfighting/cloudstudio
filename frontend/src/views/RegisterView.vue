@@ -7,6 +7,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { authApi } from '@/api/auth'
 import { getErrorMessage } from '@/api/http'
+import SiteFooter from '@/components/SiteFooter.vue'
 
 const router = useRouter()
 
@@ -117,6 +118,8 @@ async function handleRegister() {
         已有账号？<router-link to="/login">去登录</router-link>
       </div>
     </el-card>
+
+    <SiteFooter fixed />
   </div>
 </template>
 

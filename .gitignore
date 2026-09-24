@@ -163,3 +163,13 @@ backend/Dockerfile
 
 # 开发交接文档（已合并进 CLAUDE.md，不提交）
 docs/开发交接*.md
+
+# 生产部署文件（含 deploy/.env 密钥，不提交）
+deploy/
+.env.production
+
+# SSL 证书与私钥（绝不提交）
+*.key
+*.crt
+*.pem
+*.csr
