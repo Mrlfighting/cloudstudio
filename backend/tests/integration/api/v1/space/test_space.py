@@ -101,8 +101,10 @@ async def test_space_isolation_no_space(auth_client_2: AsyncClient):
     assert resp.status_code == 404
 
 
-async def test_public_gallery_excludes_space_pictures(auth_client: AsyncClient, mocker):
-    """空间图片不进入公共图库列表。"""
+async def test_public_gallery_excludes_space_pictures(
+    client: AsyncClient, auth_client: AsyncClient, mocker
+):
+    """游客访问公共图库时不会看到私有空间图片。"""
     _mock_cos(mocker)
     await auth_client.post("/api/v1/spaces/", json={"name": "我的空间"})
     files = {"file": ("t.png", make_png_image(), "image/png")}
@@ -110,7 +112,7 @@ async def test_public_gallery_excludes_space_pictures(auth_client: AsyncClient, 
     await auth_client.post("/api/v1/spaces/my/pictures", files=files, data=data)
 
     # 公共图库列表不应包含空间图片
-    resp = await auth_client.get("/api/v1/pictures/")
+    resp = await client.get("/api/v1/pictures/")
     assert resp.status_code == 200
     names = [item["name"] for item in resp.json()["data"]]
     assert "空间私有图片" not in names

@@ -117,8 +117,10 @@ async def test_list_team_pictures(auth_client: AsyncClient, mocker):
     assert body["data"][0]["name"] == "团队图片"
 
 
-async def test_team_picture_not_in_public_gallery(auth_client: AsyncClient, mocker):
-    """团队图片不进入公共图库列表。"""
+async def test_team_picture_not_in_public_gallery(
+    client: AsyncClient, auth_client: AsyncClient, mocker
+):
+    """游客访问公共图库时不会看到团队空间图片。"""
     _mock_cos(mocker)
     create = await auth_client.post("/api/v1/spaces/team", json={"name": "团队"})
     team_id = create.json()["id"]
@@ -126,7 +128,7 @@ async def test_team_picture_not_in_public_gallery(auth_client: AsyncClient, mock
     data = {"name": "团队私有图片", "category": "风景"}
     await auth_client.post(f"/api/v1/spaces/{team_id}/pictures", files=files, data=data)
 
-    resp = await auth_client.get("/api/v1/pictures/")
+    resp = await client.get("/api/v1/pictures/")
     names = [item["name"] for item in resp.json()["data"]]
     assert "团队私有图片" not in names
 

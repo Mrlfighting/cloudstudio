@@ -51,15 +51,15 @@ async def _create_picture(
     return pic
 
 
-async def test_list_shows_only_approved(
-    client: AsyncClient, auth_client: AsyncClient, db_session: AsyncSession, test_user: dict
+async def test_public_list_allows_anonymous_and_hides_unpublished(
+    client: AsyncClient, db_session: AsyncSession, test_user: dict
 ):
-    """用户列表仅返回已发布图片。"""
+    """游客可访问公共列表，且列表仅返回已发布图片。"""
     await _create_picture(db_session, test_user["id"], status="approved", name="已发布")
     await _create_picture(db_session, test_user["id"], status="pending", name="待审核")
     await _create_picture(db_session, test_user["id"], status="rejected", name="已拒绝")
 
-    response = await auth_client.get("/api/v1/pictures/")
+    response = await client.get("/api/v1/pictures/")
     assert response.status_code == 200
     data = response.json()
     names = {item["name"] for item in data["data"]}
@@ -67,59 +67,65 @@ async def test_list_shows_only_approved(
     assert "待审核" not in names
     assert "已拒绝" not in names
 
-
-async def test_list_requires_auth(client: AsyncClient):
-    """未登录访问列表 → 401。"""
-    response = await client.get("/api/v1/pictures/")
-    assert response.status_code == 401
-
-
 async def test_list_category_and_keyword_filter(
-    auth_client: AsyncClient, db_session: AsyncSession, test_user: dict
+    client: AsyncClient, db_session: AsyncSession, test_user: dict
 ):
-    """分类筛选 + 关键词（名称/标签）搜索。"""
+    """游客可以使用分类筛选和关键词（名称/标签）搜索。"""
     await _create_picture(db_session, test_user["id"], name="黄山云海", category="风景", tags=["自然", "山"])
     await _create_picture(db_session, test_user["id"], name="猫咪", category="动物", tags=["宠物"])
 
     # 分类筛选
-    r1 = await auth_client.get("/api/v1/pictures/", params={"category": "风景"})
+    r1 = await client.get("/api/v1/pictures/", params={"category": "风景"})
     assert {i["name"] for i in r1.json()["data"]} == {"黄山云海"}
 
     # 关键词命中名称
-    r2 = await auth_client.get("/api/v1/pictures/", params={"keyword": "黄山"})
+    r2 = await client.get("/api/v1/pictures/", params={"keyword": "黄山"})
     assert {i["name"] for i in r2.json()["data"]} == {"黄山云海"}
 
     # 关键词命中标签
-    r3 = await auth_client.get("/api/v1/pictures/", params={"keyword": "宠物"})
+    r3 = await client.get("/api/v1/pictures/", params={"keyword": "宠物"})
     assert {i["name"] for i in r3.json()["data"]} == {"猫咪"}
 
 
 async def test_list_sort_popularity(
-    auth_client: AsyncClient, db_session: AsyncSession, test_user: dict
+    client: AsyncClient, db_session: AsyncSession, test_user: dict
 ):
-    """按热度（下载次数）排序。"""
+    """游客可以按热度（下载次数）排序。"""
     await _create_picture(db_session, test_user["id"], name="低热度", download_count=1)
     await _create_picture(db_session, test_user["id"], name="高热度", download_count=99)
 
-    response = await auth_client.get("/api/v1/pictures/", params={"sort": "popularity"})
+    response = await client.get("/api/v1/pictures/", params={"sort": "popularity"})
     names = [i["name"] for i in response.json()["data"]]
     assert names[0] == "高热度"
 
 
 async def test_get_detail_and_pending_hidden(
-    auth_client: AsyncClient, db_session: AsyncSession, test_user: dict
+    client: AsyncClient, db_session: AsyncSession, test_user: dict
 ):
-    """已发布详情可见；待审核详情对普通用户 404。"""
+    """游客可查看已发布详情；待审核详情对游客返回 404。"""
     approved = await _create_picture(db_session, test_user["id"], status="approved")
     pending = await _create_picture(db_session, test_user["id"], status="pending")
 
-    r1 = await auth_client.get(f"/api/v1/pictures/{approved.id}")
+    r1 = await client.get(f"/api/v1/pictures/{approved.id}")
     assert r1.status_code == 200
     assert r1.json()["download_count"] == 0
     assert r1.json()["pic_width"] == 100
 
-    r2 = await auth_client.get(f"/api/v1/pictures/{pending.id}")
+    r2 = await client.get(f"/api/v1/pictures/{pending.id}")
     assert r2.status_code == 404
+
+
+async def test_download_and_similar_still_require_auth(
+    client: AsyncClient, db_session: AsyncSession, test_user: dict
+):
+    """开放只读浏览后，下载和以图搜图仍要求登录。"""
+    pic = await _create_picture(db_session, test_user["id"], status="approved")
+
+    download_response = await client.get(f"/api/v1/pictures/{pic.id}/download")
+    similar_response = await client.get(f"/api/v1/pictures/{pic.id}/similar")
+
+    assert download_response.status_code == 401
+    assert similar_response.status_code == 401
 
 
 async def test_download_increments_count(
