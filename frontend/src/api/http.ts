@@ -2,7 +2,7 @@
  * Axios 实例与拦截器
  * - 会话认证：withCredentials 携带 cookie（开发经 Vite 代理同源）
  * - CSRF：POST/PATCH/DELETE 自动注入 X-CSRF-Token（读 JS 可读的 csrf_token cookie）
- * - 401：登录失效 → 清状态并跳转登录页（登录接口自身的 401/429 不跳转）
+ * - 401：受保护请求打开全局登录弹窗，登录成功后最多重放一次
  * - 403 + X-CSRF-Error：CSRF token 过期 → 刷新后重放一次
  */
 import axios from 'axios'
@@ -61,16 +61,29 @@ http.interceptors.response.use(
       }
     }
 
-    // 401：登录接口自身不跳转；其余清状态并跳登录页
+    // 401：公共请求直接交给页面展示配置错误；受保护请求通过认证门恢复。
     if (response.status === 401) {
       const url = config.url ?? ''
       const isLoginCall = url.includes('/auth/login')
-      const onLoginRoute = window.location.pathname.startsWith('/login')
-      if (!isLoginCall && !onLoginRoute) {
+      if (!isLoginCall) {
         const { useAuthStore } = await import('@/stores/auth')
         useAuthStore().reset()
-        const redirect = encodeURIComponent(window.location.pathname + window.location.search)
-        window.location.href = `/login?redirect=${redirect}`
+
+        if (!config.skipAuthPrompt && !config._authRetried) {
+          const { useAuthGateStore } = await import('@/stores/authGate')
+          const authenticated = await useAuthGateStore().requireAuthentication({
+            reason: '登录状态已失效，请重新登录后继续',
+          })
+          if (authenticated) {
+            config._authRetried = true
+            return http(config)
+          }
+
+          const { default: router } = await import('@/router')
+          if (router.currentRoute.value.meta.requiresAuth) {
+            await router.replace('/pictures')
+          }
+        }
       }
     }
 

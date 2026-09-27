@@ -7,16 +7,19 @@ import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { pictureApi } from '@/api/picture'
 import { getErrorMessage } from '@/api/http'
+import { useAuthGateStore } from '@/stores/authGate'
 import { PICTURE_CATEGORIES, type PictureListItemRead, type PictureSort } from '@/types/picture'
 import PictureCard from '@/components/PictureCard.vue'
 import PictureUploadDialog from '@/components/PictureUploadDialog.vue'
 import SiteFooter from '@/components/SiteFooter.vue'
 
 const router = useRouter()
+const authGate = useAuthGateStore()
 
 const loading = ref(false)
 const rows = ref<PictureListItemRead[]>([])
 const uploadVisible = ref(false)
+const loadError = ref('')
 
 const filters = reactive({
   keyword: '',
@@ -32,6 +35,7 @@ const pagination = reactive({
 
 async function load() {
   loading.value = true
+  loadError.value = ''
   try {
     const res = await pictureApi.list({
       page: pagination.page,
@@ -43,10 +47,23 @@ async function load() {
     rows.value = res.data
     pagination.total = res.total_count
   } catch (err) {
-    ElMessage.error(getErrorMessage(err, '获取图片列表失败'))
+    const status = (err as { response?: { status?: number } })?.response?.status
+    if (status === 401) {
+      rows.value = []
+      pagination.total = 0
+      loadError.value = '公共图库接口尚未开放游客访问，请联系后端开放只读列表接口。'
+    } else {
+      loadError.value = getErrorMessage(err, '获取图片列表失败')
+      ElMessage.error(loadError.value)
+    }
   } finally {
     loading.value = false
   }
+}
+
+async function openUpload(): Promise<void> {
+  const authenticated = await authGate.requireAuthentication({ reason: '登录后即可上传图片' })
+  if (authenticated) uploadVisible.value = true
 }
 
 function resetAndLoad() {
@@ -134,7 +151,7 @@ onMounted(load)
               <el-option v-for="c in PICTURE_CATEGORIES" :key="c" :label="c" :value="c" />
             </el-select>
             <el-button @click="router.push('/pictures/my')"><el-icon><Folder /></el-icon>我的上传</el-button>
-            <el-button type="primary" :icon="'Upload'" @click="uploadVisible = true">上传图片</el-button>
+            <el-button type="primary" :icon="'Upload'" @click="openUpload">上传图片</el-button>
           </div>
         </div>
         <div class="chip-row">
@@ -142,11 +159,12 @@ onMounted(load)
           <button v-for="c in PICTURE_CATEGORIES.slice(0, 6)" :key="c" class="chip" :class="{ active: filters.category === c }" @click="filters.category = c; resetAndLoad()">{{ c }}</button>
         </div>
 
+        <el-alert v-if="loadError" :title="loadError" type="warning" show-icon :closable="false" class="browse-error" />
         <div v-loading="loading" class="masonry">
           <PictureCard v-for="item in rows" :key="item.id" :item="item" />
         </div>
-        <el-empty v-if="!loading && rows.length === 0" description="暂无图片，试试调整筛选条件">
-          <el-button type="primary" :icon="'Upload'" @click="uploadVisible = true">上传第一张图片</el-button>
+        <el-empty v-if="!loading && !loadError && rows.length === 0" description="暂无图片，试试调整筛选条件">
+          <el-button type="primary" :icon="'Upload'" @click="openUpload">上传第一张图片</el-button>
         </el-empty>
         <div v-if="pagination.total > 0" class="pagination-wrap">
           <el-pagination
@@ -215,6 +233,7 @@ onMounted(load)
   display: flex;
   justify-content: center;
 }
+.browse-error { margin: 18px 0; }
 @media (max-width: 560px) {
   .hero-orb { display: none; }
   .search, .category { width: 100%; }

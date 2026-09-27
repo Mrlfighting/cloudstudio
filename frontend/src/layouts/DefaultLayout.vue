@@ -5,15 +5,24 @@
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useAuthGateStore } from '@/stores/authGate'
 import UserAvatar from '@/components/UserAvatar.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+const authGate = useAuthGateStore()
 
 async function handleLogout() {
   await auth.logout()
   ElMessage.success('已退出登录')
-  router.push('/login')
+  router.push('/pictures')
+}
+
+function openAuthentication(mode: 'login' | 'register'): void {
+  void authGate.requireAuthentication({
+    mode,
+    reason: mode === 'login' ? '登录后可使用完整功能' : '注册并登录后可使用完整功能',
+  })
 }
 </script>
 
@@ -60,6 +69,10 @@ async function handleLogout() {
               </el-dropdown-menu>
             </template>
           </el-dropdown>
+        </div>
+        <div v-else class="guest-actions">
+          <el-button text @click="openAuthentication('login')">登录</el-button>
+          <el-button type="primary" @click="openAuthentication('register')">注册</el-button>
         </div>
       </div>
     </el-header>
@@ -134,6 +147,8 @@ async function handleLogout() {
   align-items: center;
 }
 
+.guest-actions { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+
 .user-trigger {
   display: flex;
   align-items: center;
@@ -164,5 +179,7 @@ async function handleLogout() {
   .header-inner { height: 62px; }
   .brand-copy { display: none; }
   .nav :deep(.el-menu-item) { height: 62px; }
+  .guest-actions .el-button:first-child { display: none; }
+  .guest-actions .el-button { padding: 8px 12px; }
 }
 </style>

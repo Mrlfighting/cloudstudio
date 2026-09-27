@@ -3,17 +3,23 @@
  * 图片详情：大图预览 + 素材信息 + 下载/相似图/分享
  */
 import { computed, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { pictureApi } from '@/api/picture'
 import type { PictureRead } from '@/types/picture'
 import SimilarSearchDialog from '@/components/SimilarSearchDialog.vue'
 import ShareDialog from '@/components/ShareDialog.vue'
+import { useAuthStore } from '@/stores/auth'
+import { useAuthGateStore } from '@/stores/authGate'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
+const authGate = useAuthGateStore()
 
 const loading = ref(false)
 const notFound = ref(false)
+const loadError = ref('')
 const detail = ref<PictureRead | null>(null)
 const similarVisible = ref(false)
 const shareVisible = ref(false)
@@ -48,8 +54,27 @@ function formatDimension(picWidth: number | null, picHeight: number | null): str
   return `${picWidth} × ${picHeight}`
 }
 
-function handleDownload() {
-  window.open(pictureApi.downloadUrl(id.value), '_blank', 'noopener')
+function startDownload(): void {
+  const url = pictureApi.downloadUrl(id.value)
+  const downloadWindow = window.open(url, '_blank')
+  if (downloadWindow) {
+    downloadWindow.opener = null
+  } else {
+    authGate.showDownloadFallback(url)
+  }
+}
+
+async function handleDownload(): Promise<void> {
+  if (!auth.isAuthenticated) {
+    const authenticated = await authGate.requireAuthentication({ reason: '登录后即可下载原图' })
+    if (!authenticated) return
+  }
+  startDownload()
+}
+
+async function handleSimilarSearch(): Promise<void> {
+  const authenticated = await authGate.requireAuthentication({ reason: '登录后即可搜索相似图片' })
+  if (authenticated) similarVisible.value = true
 }
 
 const previewChips = computed(() => {
@@ -89,8 +114,16 @@ onMounted(async () => {
   loading.value = true
   try {
     detail.value = await pictureApi.get(id.value)
-  } catch {
-    notFound.value = true
+  } catch (err) {
+    const status = (err as { response?: { status?: number } })?.response?.status
+    if (status === 401) {
+      loadError.value = '公共图片详情接口尚未开放游客访问，请联系后端开放只读详情接口。'
+    } else if (status === 404) {
+      notFound.value = true
+    } else {
+      loadError.value = '图片详情加载失败，请稍后重试'
+      ElMessage.error(loadError.value)
+    }
   } finally {
     loading.value = false
   }
@@ -115,6 +148,17 @@ onMounted(async () => {
     </div>
 
     <el-skeleton v-if="loading" :rows="8" animated />
+
+    <el-result
+      v-else-if="loadError"
+      icon="warning"
+      title="暂时无法浏览图片详情"
+      :sub-title="loadError"
+    >
+      <template #extra>
+        <el-button type="primary" @click="router.push('/pictures')">返回图片库</el-button>
+      </template>
+    </el-result>
 
     <el-result
       v-else-if="notFound || !detail"
@@ -218,7 +262,7 @@ onMounted(async () => {
                 <el-icon><Share /></el-icon>
                 分享素材
               </el-button>
-              <el-button @click="similarVisible = true">
+              <el-button @click="handleSimilarSearch">
                 <el-icon><Search /></el-icon>
                 搜相似图
               </el-button>
