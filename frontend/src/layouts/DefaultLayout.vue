@@ -38,6 +38,7 @@ function openAuthentication(mode: 'login' | 'register'): void {
         <!-- router 属性：让 el-menu-item 的 index 作为路由路径，点击自动导航 -->
         <el-menu mode="horizontal" router :default-active="$route.path" :ellipsis="false" class="nav">
           <el-menu-item index="/pictures"><el-icon><Compass /></el-icon>探索</el-menu-item>
+          <el-menu-item index="/spaces/color-search"><el-icon><Brush /></el-icon>颜色搜图</el-menu-item>
           <el-menu-item index="/profile"><el-icon><User /></el-icon>个人中心</el-menu-item>
           <el-menu-item index="/spaces"><el-icon><FolderOpened /></el-icon>我的空间</el-menu-item>
           <el-menu-item index="/spaces/team"><el-icon><UserFilled /></el-icon>团队空间</el-menu-item>

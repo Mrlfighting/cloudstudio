@@ -9,12 +9,14 @@ import { teamSpaceApi } from '@/api/teamSpace'
 import { getErrorMessage } from '@/api/http'
 import PageIntro from '@/components/PageIntro.vue'
 import StatCard from '@/components/StatCard.vue'
-import { formatBytes } from '@/types/space'
+import { formatBytes, type SpaceInfoRead } from '@/types/space'
 import { spaceRoleLabel, type TeamSpaceListItemRead } from '@/types/teamSpace'
 
 const router = useRouter()
 const loading = ref(false)
 const teams = ref<TeamSpaceListItemRead[]>([])
+const ownedTeam = ref<SpaceInfoRead | null>(null)
+const ownedTeamState = ref<'loading' | 'exists' | 'missing' | 'error'>('loading')
 
 const teamCount = computed(() => teams.value.length)
 const adminCount = computed(() => teams.value.filter((team) => team.space_role === 'admin').length)
@@ -31,13 +33,35 @@ function roleTagType(role: string): 'warning' | 'success' | 'info' {
 
 async function load() {
   loading.value = true
-  try {
-    teams.value = await teamSpaceApi.listMyTeams()
-  } catch (err) {
-    ElMessage.error(getErrorMessage(err, '获取团队列表失败'))
-  } finally {
-    loading.value = false
+  ownedTeam.value = null
+  ownedTeamState.value = 'loading'
+
+  const [teamsResult, ownedTeamResult] = await Promise.allSettled([
+    teamSpaceApi.listMyTeams(),
+    teamSpaceApi.getMyTeam(),
+  ])
+
+  if (teamsResult.status === 'fulfilled') {
+    teams.value = teamsResult.value
+  } else {
+    teams.value = []
+    ElMessage.error(getErrorMessage(teamsResult.reason, '获取团队列表失败'))
   }
+
+  if (ownedTeamResult.status === 'fulfilled') {
+    ownedTeam.value = ownedTeamResult.value
+    ownedTeamState.value = 'exists'
+  } else {
+    const status = (ownedTeamResult.reason as { response?: { status?: number } })?.response?.status
+    if (status === 404) {
+      ownedTeamState.value = 'missing'
+    } else {
+      ownedTeamState.value = 'error'
+      ElMessage.warning(getErrorMessage(ownedTeamResult.reason, '无法确认已创建的团队空间'))
+    }
+  }
+
+  loading.value = false
 }
 
 onMounted(load)
@@ -46,6 +70,15 @@ onMounted(load)
 <template>
   <div class="team-page page-container">
     <PageIntro eyebrow="COLLABORATION · 协作空间" title="团队空间" subtitle="与团队一起整理素材、共创灵感" />
+
+    <el-alert
+      v-if="ownedTeamState === 'error'"
+      class="owner-alert"
+      type="warning"
+      title="暂时无法确认你是否已创建团队空间，请刷新后重试"
+      show-icon
+      :closable="false"
+    />
 
     <section class="team-layout">
       <aside class="team-sidebar">
@@ -127,7 +160,22 @@ onMounted(load)
                 <div class="panel-title">我的团队</div>
                 <div class="small-muted">点击进入团队工作台继续协作</div>
               </div>
-              <el-button type="primary" :icon="'Plus'" @click="router.push('/spaces/team/create')">
+              <el-button
+                v-if="ownedTeamState === 'exists' && ownedTeam"
+                type="primary"
+                :icon="'FolderOpened'"
+                @click="router.push(`/spaces/team/${ownedTeam.id}`)"
+              >
+                查看我创建的团队
+              </el-button>
+              <el-button
+                v-else
+                type="primary"
+                :icon="'Plus'"
+                :loading="ownedTeamState === 'loading'"
+                :disabled="ownedTeamState === 'error'"
+                @click="router.push('/spaces/team/create')"
+              >
                 创建团队空间
               </el-button>
             </div>
@@ -195,6 +243,10 @@ onMounted(load)
   grid-template-columns: 320px minmax(0, 1fr);
   gap: 18px;
   align-items: start;
+}
+
+.owner-alert {
+  margin-bottom: 16px;
 }
 
 .team-sidebar {

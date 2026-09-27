@@ -100,6 +100,12 @@ const router = createRouter({
           meta: { title: '空间图册', requiresAuth: true },
         },
         {
+          path: 'spaces/color-search',
+          name: 'space-color-search',
+          component: () => import('@/views/space/ColorSearchView.vue'),
+          meta: { title: '颜色搜图', requiresAuth: true },
+        },
+        {
           path: 'spaces/pictures/:id',
           name: 'space-picture-detail',
           component: () => import('@/views/space/SpacePictureDetailView.vue'),

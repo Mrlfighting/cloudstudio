@@ -12,6 +12,7 @@ import {
   spaceLevelLabel,
   type SpaceLevel,
   type SpaceListItemRead,
+  type SpaceRead,
 } from '@/types/space'
 import EmptyValue from '@/components/EmptyValue.vue'
 import SpaceDetailDialog from './SpaceDetailDialog.vue'
@@ -33,8 +34,9 @@ const pagination = reactive({
 })
 
 const detailVisible = ref(false)
+const detailLoading = ref(false)
 const editVisible = ref(false)
-const viewing = ref<SpaceListItemRead | null>(null)
+const viewing = ref<SpaceRead | null>(null)
 const editing = ref<SpaceListItemRead | null>(null)
 
 async function load() {
@@ -70,9 +72,18 @@ function onSizeChange() {
   load()
 }
 
-function openDetail(row: SpaceListItemRead) {
-  viewing.value = row
+async function openDetail(row: SpaceListItemRead) {
+  viewing.value = null
   detailVisible.value = true
+  detailLoading.value = true
+  try {
+    viewing.value = await spaceApi.get(row.id)
+  } catch (err) {
+    detailVisible.value = false
+    ElMessage.error(getErrorMessage(err, '获取空间详情失败'))
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 function openEdit(row: SpaceListItemRead) {
@@ -245,7 +256,7 @@ onMounted(load)
       </div>
     </el-card>
 
-    <SpaceDetailDialog v-model="detailVisible" :space="viewing" />
+    <SpaceDetailDialog v-model="detailVisible" :space="viewing" :loading="detailLoading" />
     <SpaceEditDialog v-model="editVisible" :space="editing" @success="load" />
   </div>
 </template>
