@@ -3,7 +3,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import RegisterForm from '@/components/auth/RegisterForm.vue'
-import SiteFooter from '@/components/SiteFooter.vue'
+import AuthPageShell from '@/components/auth/AuthPageShell.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -23,15 +23,12 @@ function goLogin(): void {
 </script>
 
 <template>
-  <div class="auth-page">
-    <div class="auth-decoration" aria-hidden="true"><span></span><i></i><b></b></div>
-    <el-card class="auth-card">
-      <template #header>
-        <div class="auth-heading">创建你的空间</div>
-        <div class="auth-kicker">加入云上工坊，收藏每一份灵感</div>
-      </template>
+  <AuthPageShell
+    mode="register"
+    eyebrow="JOIN CLOUD ATELIER"
+    title="创建你的空间"
+    subtitle="加入云上工坊，收藏每一份值得记住的灵感。"
+  >
       <RegisterForm @success="handleSuccess" @switch-login="goLogin" />
-    </el-card>
-    <SiteFooter fixed />
-  </div>
+  </AuthPageShell>
 </template>

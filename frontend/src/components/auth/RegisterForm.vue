@@ -73,16 +73,16 @@ async function handleRegister(): Promise<void> {
 <template>
   <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="handleRegister">
     <el-form-item label="账号" prop="account">
-      <el-input v-model="form.account" placeholder="2-20 位小写字母或数字" clearable autocomplete="username" />
+      <el-input v-model="form.account" placeholder="2-20 位小写字母或数字" :prefix-icon="'User'" clearable autocomplete="username" />
     </el-form-item>
     <el-form-item label="密码" prop="password">
-      <el-input v-model="form.password" type="password" show-password placeholder="至少 8 位" autocomplete="new-password" />
+      <el-input v-model="form.password" type="password" show-password placeholder="至少 8 位" :prefix-icon="'Lock'" autocomplete="new-password" />
     </el-form-item>
     <el-form-item label="确认密码" prop="confirm_password">
-      <el-input v-model="form.confirm_password" type="password" show-password placeholder="请再次输入密码" autocomplete="new-password" />
+      <el-input v-model="form.confirm_password" type="password" show-password placeholder="请再次输入密码" :prefix-icon="'CircleCheck'" autocomplete="new-password" />
     </el-form-item>
     <el-form-item label="昵称（可选）" prop="nickname">
-      <el-input v-model="form.nickname" placeholder="请输入昵称" clearable />
+      <el-input v-model="form.nickname" placeholder="请输入昵称" :prefix-icon="'MagicStick'" clearable />
     </el-form-item>
     <el-form-item label="简介（可选）" prop="user_profile">
       <el-input

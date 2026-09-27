@@ -46,6 +46,12 @@ const router = createRouter({
           meta: { title: '图片库' },
         },
         {
+          path: 'pixel-beads',
+          name: 'pixel-beads',
+          component: () => import('@/views/PixelBeadsView.vue'),
+          meta: { title: '拼豆工坊' },
+        },
+        {
           path: 'pictures/my',
           name: 'my-uploads',
           component: () => import('@/views/pictures/MyUploadsView.vue'),

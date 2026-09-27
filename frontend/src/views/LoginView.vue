@@ -3,7 +3,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import LoginForm from '@/components/auth/LoginForm.vue'
-import SiteFooter from '@/components/SiteFooter.vue'
+import AuthPageShell from '@/components/auth/AuthPageShell.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -24,15 +24,12 @@ function goRegister(): void {
 </script>
 
 <template>
-  <div class="auth-page">
-    <div class="auth-decoration" aria-hidden="true"><span></span><i></i><b></b></div>
-    <el-card class="auth-card">
-      <template #header>
-        <div class="auth-heading">欢迎回来</div>
-        <div class="auth-kicker">登录云上工坊，继续发现灵感</div>
-      </template>
+  <AuthPageShell
+    mode="login"
+    eyebrow="MEMBER SIGN IN"
+    title="欢迎回来"
+    subtitle="登录云上工坊，继续发现、收藏与创作。"
+  >
       <LoginForm :initial-account="initialAccount" @success="handleSuccess" @switch-register="goRegister" />
-    </el-card>
-    <SiteFooter fixed />
-  </div>
+  </AuthPageShell>
 </template>
