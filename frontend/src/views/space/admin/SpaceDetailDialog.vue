@@ -3,11 +3,12 @@
  * 空间详情弹窗：基本信息 + 容量/数量进度
  */
 import { computed } from 'vue'
-import { formatBytes, spaceLevelLabel, type SpaceListItemRead } from '@/types/space'
+import { formatBytes, spaceLevelLabel, type SpaceRead } from '@/types/space'
 
 const visible = defineModel<boolean>({ default: false })
 const props = defineProps<{
-  space: SpaceListItemRead | null
+  space: SpaceRead | null
+  loading?: boolean
 }>()
 
 const capacityPercent = computed(() => {
@@ -23,7 +24,8 @@ const countPercent = computed(() => {
 
 <template>
   <el-dialog v-model="visible" title="空间详情" width="520px" class="space-detail-dialog">
-    <template v-if="space">
+    <el-skeleton v-if="loading" :rows="7" animated />
+    <template v-else-if="space">
       <div class="dialog-intro">
         <div class="dialog-icon"><el-icon><FolderOpened /></el-icon></div>
         <div>
@@ -34,6 +36,7 @@ const countPercent = computed(() => {
       </div>
       <el-descriptions :column="1" border>
         <el-descriptions-item label="名称">{{ space.name }}</el-descriptions-item>
+        <el-descriptions-item label="空间类型">{{ space.space_type === 1 ? '团队空间' : '私有空间' }}</el-descriptions-item>
         <el-descriptions-item label="级别">
           <el-tag size="small" type="info">{{ spaceLevelLabel(space.space_level) }}</el-tag>
         </el-descriptions-item>
@@ -44,6 +47,7 @@ const countPercent = computed(() => {
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ space.created_at ?? '—' }}</el-descriptions-item>
+        <el-descriptions-item label="更新时间">{{ space.updated_at ?? '—' }}</el-descriptions-item>
       </el-descriptions>
 
       <div class="quota">

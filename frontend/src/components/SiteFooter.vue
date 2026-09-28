@@ -56,4 +56,10 @@ const MIIT_URL = 'https://beian.miit.gov.cn/'
 .site-footer.is-fixed .icp-link {
   pointer-events: auto;
 }
+
+@media (max-width: 560px) {
+  .site-footer { margin-top: 32px; padding: 18px 12px calc(10px + env(safe-area-inset-bottom)); }
+  .site-footer.is-fixed { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .icp-link { font-size: 11px; }
+}
 </style>

@@ -142,5 +142,8 @@ async function handleSubmit() {
   .create-layout {
     grid-template-columns: 1fr;
   }
+  .create-card :deep(.el-form-item:last-child .el-form-item__content) { display: grid; grid-template-columns: 1fr 1fr; width: 100%; gap: 8px; }
+  .create-card :deep(.el-form-item:last-child .el-button) { width: 100%; margin-left: 0; }
+  .benefits-panel { padding: 20px 18px; }
 }
 </style>

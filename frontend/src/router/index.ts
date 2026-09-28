@@ -43,7 +43,13 @@ const router = createRouter({
           path: 'pictures',
           name: 'picture-list',
           component: () => import('@/views/pictures/PictureListView.vue'),
-          meta: { title: '图片库', requiresAuth: true },
+          meta: { title: '图片库' },
+        },
+        {
+          path: 'pixel-beads',
+          name: 'pixel-beads',
+          component: () => import('@/views/PixelBeadsView.vue'),
+          meta: { title: '拼豆工坊' },
         },
         {
           path: 'pictures/my',
@@ -61,7 +67,7 @@ const router = createRouter({
           path: 'pictures/:id',
           name: 'picture-detail',
           component: () => import('@/views/pictures/PictureDetailView.vue'),
-          meta: { title: '图片详情', requiresAuth: true },
+          meta: { title: '图片详情' },
         },
         {
           path: 'admin/users',
@@ -100,6 +106,12 @@ const router = createRouter({
           meta: { title: '空间图册', requiresAuth: true },
         },
         {
+          path: 'spaces/color-search',
+          name: 'space-color-search',
+          component: () => import('@/views/space/ColorSearchView.vue'),
+          meta: { title: '颜色搜图', requiresAuth: true },
+        },
+        {
           path: 'spaces/pictures/:id',
           name: 'space-picture-detail',
           component: () => import('@/views/space/SpacePictureDetailView.vue'),
@@ -135,31 +147,41 @@ const router = createRouter({
           component: () => import('@/views/teamSpace/TeamSpacePictureDetailView.vue'),
           meta: { title: '团队图片详情', requiresAuth: true },
         },
-        { path: '', redirect: '/profile' },
+        { path: '', redirect: '/pictures' },
       ],
     },
-    { path: '/:pathMatch(.*)*', redirect: '/profile' },
+    { path: '/:pathMatch(.*)*', redirect: '/pictures' },
   ],
 })
 
-router.beforeEach(async (to) => {
+router.beforeEach(async (to, from) => {
   const auth = useAuthStore()
   if (!auth.initialized) await auth.initialize()
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
-    return { path: '/login', query: { redirect: to.fullPath } }
+    const fallbackPath = from.name ? from.path : '/pictures'
+    const fallbackQuery = from.name ? { ...from.query } : {}
+    delete fallbackQuery.auth
+    delete fallbackQuery.redirect
+    delete fallbackQuery.authReason
+    return {
+      path: fallbackPath,
+      query: {
+        ...fallbackQuery,
+        auth: 'login',
+        redirect: to.fullPath,
+        authReason: `登录后可进入${String(to.meta.title ?? '该功能')}`,
+      },
+      hash: from.name ? from.hash : '',
+    }
   }
   if (to.meta.guestOnly && auth.isAuthenticated) {
-    return { path: '/profile' }
+    return { path: '/pictures' }
   }
   if (to.meta.requiresAdmin && !auth.isAdmin) {
     return { path: '/profile' }
   }
   return true
-})
-
-router.afterEach((to) => {
-  document.title = to.meta.title ? `${to.meta.title} · 用户中心` : '用户中心'
 })
 
 export default router

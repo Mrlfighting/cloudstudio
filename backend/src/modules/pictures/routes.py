@@ -67,27 +67,25 @@ async def upload_picture(
     response_model=PaginatedListResponse[PictureListItemRead],
     summary="图片列表（已发布）",
     description="""
-           登录用户可见：分页展示已审核通过的图片。
+           公开访问：游客和登录用户均可分页浏览已审核通过的公共图库图片。
 
            - page / items_per_page：分页
            - category：按分类筛选
            - keyword：按名称/简介/标签搜索
            - sort：time（最新）/ popularity（热度，按下载次数）
            """,
-    responses={401: {"description": "未登录"}},
     response_description="分页图片列表",
 )
 async def list_pictures(
     db: AsyncSessionDep,
     picture_service: PictureServiceDep,
-    _: CurrentUserDep,
     page: int = Query(1, ge=1),
     items_per_page: int = Query(10, ge=1, le=100),
     category: str | None = Query(None),
     keyword: str | None = Query(None),
     sort: str = Query("time", pattern="^(time|popularity)$"),
 ) -> dict[str, Any]:
-    """用户端图片列表（已发布）。"""
+    """公共图片列表（仅返回已发布且不属于空间的图片）。"""
     try:
         data = await picture_service.list_user(
             db=db, page=page, items_per_page=items_per_page,
@@ -178,20 +176,19 @@ async def list_my_pictures(
     response_model=PictureRead,
     summary="图片详情",
     description="""
-           登录用户可见：查看已发布图片的完整信息（含宽高、格式、大小、下载次数等）。
+           公开访问：游客和登录用户均可查看已发布公共图片的完整信息（含宽高、格式、大小、下载次数等）。
 
            管理员如需查看任意状态图片，可先通过管理列表定位（详情接口对用户端仅返回已发布）。
            """,
-    responses={401: {"description": "未登录"}, 404: {"description": "图片不存在"}},
+    responses={404: {"description": "图片不存在"}},
     response_description="图片完整信息",
 )
 async def get_picture(
     picture_id: int,
     db: AsyncSessionDep,
     picture_service: PictureServiceDep,
-    _: CurrentUserDep,
 ) -> dict[str, Any]:
-    """图片详情（仅已发布）。"""
+    """公共图片详情（仅返回已发布且不属于空间的图片）。"""
     try:
         return await picture_service.get(db, picture_id, require_approved=True)
     except Exception as e:

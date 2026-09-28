@@ -78,4 +78,9 @@ watch(visible, (v) => {
   gap: 16px;
   min-height: 120px;
 }
+
+@media (max-width: 560px) {
+  .grid { grid-template-columns: 1fr; gap: 12px; }
+  .warn-item { overflow-wrap: anywhere; }
+}
 </style>

@@ -221,5 +221,17 @@ const detailRoute = computed(() => {
   color: var(--app-primary);
 }
 @media (max-width: 900px) { .thumb-link { min-height: 150px; } }
-@media (max-width: 480px) { .thumb-link { min-height: 180px; } }
+@media (max-width: 480px) {
+  .thumb-link { min-height: 180px; }
+  .body { padding: 12px 13px 13px; }
+  .stats { flex-wrap: wrap; gap: 7px 10px; }
+  .share-btn { width: 36px; height: 36px; justify-content: center; margin: -9px 0 -9px auto; font-size: 16px; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .thumb-hover { opacity: 1; }
+  .thumb-hover .el-button { min-height: 38px; background: rgba(255,255,255,.92); backdrop-filter: blur(10px); }
+  .pic-card:hover, .pic-card:hover .thumb { transform: none; }
+  .pic-card:hover .thumb-overlay { opacity: 0; }
+}
 </style>

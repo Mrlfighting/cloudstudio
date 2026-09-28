@@ -131,4 +131,9 @@ function onPointerUp() {
   background: rgba(236, 114, 150, 0.15);
   pointer-events: none;
 }
+
+@media (max-width: 560px) {
+  .crop-container { min-height: 260px; touch-action: none; }
+  .crop-img { max-height: 62dvh; }
+}
 </style>

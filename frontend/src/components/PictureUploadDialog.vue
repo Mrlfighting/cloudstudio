@@ -231,4 +231,12 @@ function resetForm() {
   justify-content: center;
   margin-top: 8px;
 }
+
+@media (max-width: 560px) {
+  :deep(.el-upload) { width: 100%; }
+  :deep(.el-upload-dragger) { width: 100%; min-height: 168px; padding: 22px 12px; }
+  :deep(.el-upload__text) { padding-inline: 6px; line-height: 1.65; }
+  .preview-img { max-height: 170px; }
+  .crop-row .el-button { width: 100%; }
+}
 </style>

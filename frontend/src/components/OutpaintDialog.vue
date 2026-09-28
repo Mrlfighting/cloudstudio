@@ -343,4 +343,26 @@ onUnmounted(stopPolling)
   color: var(--app-muted);
   text-align: center;
 }
+
+@media (max-width: 640px) {
+  .origin-preview, .origin-img { max-height: 150px; }
+  :deep(.el-form-item) { display: block; }
+  :deep(.el-form-item__label) { width: auto !important; height: auto; margin-bottom: 6px; line-height: 1.45; }
+  :deep(.el-form-item__content) { margin-left: 0 !important; }
+  :deep(.el-slider) { width: 100%; }
+  :deep(.el-slider__input) { width: 72px; }
+  :deep(.el-slider__runway.show-input) { margin-right: 90px; }
+  .offset-row { display: grid; grid-template-columns: 1fr 1fr; width: 100%; gap: 10px; }
+  .offset-item { display: grid; grid-template-columns: 18px minmax(0, 1fr); }
+  .offset-item :deep(.el-input-number) { width: 100%; }
+  .hint { display: block; margin: 7px 0 0; }
+  .compare { grid-template-columns: 1fr; }
+  .compare-item { min-height: 220px; }
+  .compare-item :deep(.el-image) { min-height: 180px; }
+  .processing { padding: 32px 8px; text-align: center; line-height: 1.7; }
+}
+
+@media (max-width: 380px) {
+  .offset-row { grid-template-columns: 1fr; }
+}
 </style>

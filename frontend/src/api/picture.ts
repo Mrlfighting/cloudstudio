@@ -14,7 +14,7 @@ import type { MessageResponse } from '@/types/user'
 export const pictureApi = {
   /** 用户端列表（已发布）—— 注意末尾斜杠 */
   list(params: PictureListParams = {}): Promise<PictureListResponse> {
-    return http.get<PictureListResponse>('/pictures/', { params }).then((r) => r.data)
+    return http.get<PictureListResponse>('/pictures/', { params, skipAuthPrompt: true }).then((r) => r.data)
   },
 
   /** 管理端列表（全状态）—— 无斜杠 */
@@ -29,7 +29,7 @@ export const pictureApi = {
 
   /** 图片详情（仅已发布） */
   get(id: number): Promise<PictureRead> {
-    return http.get<PictureRead>(`/pictures/${id}`).then((r) => r.data)
+    return http.get<PictureRead>(`/pictures/${id}`, { skipAuthPrompt: true }).then((r) => r.data)
   },
 
   /** 以图搜图（对已有图片搜相似，多源聚合） */

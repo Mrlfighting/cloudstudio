@@ -10,15 +10,23 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 const props = defineProps<{
   option: echarts.EChartsOption
   height?: string
+  ariaLabel?: string
 }>()
 
 const el = ref<HTMLDivElement>()
 let chart: echarts.ECharts | null = null
+let motionPreference: MediaQueryList | null = null
 
 function render() {
   if (!el.value) return
   if (!chart) chart = echarts.init(el.value)
-  chart.setOption(props.option, true)
+  chart.setOption(
+    {
+      ...props.option,
+      animation: !(motionPreference?.matches ?? false),
+    },
+    true,
+  )
 }
 
 function resize() {
@@ -26,19 +34,32 @@ function resize() {
 }
 
 onMounted(() => {
+  motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)')
   render()
   window.addEventListener('resize', resize)
+  motionPreference.addEventListener('change', render)
 })
 
 watch(() => props.option, render, { deep: true })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', resize)
+  motionPreference?.removeEventListener('change', render)
   chart?.dispose()
   chart = null
 })
 </script>
 
 <template>
-  <div ref="el" :style="{ width: '100%', height: height || '320px' }" />
+  <div
+    ref="el"
+    class="base-chart"
+    role="img"
+    :aria-label="ariaLabel || '数据图表'"
+    :style="{ width: '100%', height: height || '320px' }"
+  />
 </template>
+
+<style scoped>
+.base-chart { min-width: 0; }
+</style>

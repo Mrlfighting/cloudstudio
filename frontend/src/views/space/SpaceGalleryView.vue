@@ -10,14 +10,12 @@ import { getErrorMessage } from '@/api/http'
 import { PICTURE_CATEGORIES, type PictureListItemRead, type PictureSort } from '@/types/picture'
 import PictureCard from '@/components/PictureCard.vue'
 import PictureUploadDialog from '@/components/PictureUploadDialog.vue'
-import ColorSearchDialog from './ColorSearchDialog.vue'
 
 const router = useRouter()
 
 const loading = ref(false)
 const rows = ref<PictureListItemRead[]>([])
 const uploadVisible = ref(false)
-const colorSearchVisible = ref(false)
 
 const filters = reactive({
   keyword: '',
@@ -73,7 +71,7 @@ onMounted(load)
       <div><div class="eyebrow">PRIVATE GALLERY · 私人图册</div><h2 class="page-title">我的空间图册</h2><p class="page-subtitle">管理私有图片，使用 AI 工具继续创作</p></div>
       <div class="header-actions">
         <el-button @click="router.push('/spaces')">返回空间</el-button>
-        <el-button :icon="'Brush'" @click="colorSearchVisible = true">按颜色搜索</el-button>
+        <el-button :icon="'Brush'" @click="router.push('/spaces/color-search')">按颜色搜索</el-button>
         <el-button type="primary" :icon="'Upload'" @click="uploadVisible = true">上传图片</el-button>
       </div>
     </div>
@@ -130,7 +128,6 @@ onMounted(load)
     </div>
 
     <PictureUploadDialog v-model="uploadVisible" kind="space" @success="load" />
-    <ColorSearchDialog v-model="colorSearchVisible" />
   </div>
 </template>
 
@@ -180,5 +177,16 @@ onMounted(load)
   margin-top: 20px;
   display: flex;
   justify-content: center;
+}
+
+@media (max-width: 720px) {
+  .gallery-header { align-items: stretch; flex-direction: column; }
+  .header-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .header-actions .el-button { width: 100%; min-width: 0; margin-left: 0; }
+  .header-actions .el-button:last-child { grid-column: 1 / -1; }
+  .toolbar { align-items: stretch; }
+  .search, .category, .toolbar .el-radio-group { width: 100%; }
+  .toolbar :deep(.el-radio-button) { flex: 1; }
+  .toolbar :deep(.el-radio-button__inner) { width: 100%; min-height: 40px; }
 }
 </style>
