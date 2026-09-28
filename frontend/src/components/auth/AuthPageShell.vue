@@ -23,7 +23,13 @@ withDefaults(defineProps<{
     <main class="auth-shell analytics-reveal">
       <section class="auth-story">
         <router-link class="brand" to="/pictures" aria-label="返回云上工坊探索页">
-          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 48 48">
+              <path class="brand-cloud" d="M14.7 35.1a6.7 6.7 0 0 1-1.1-13.3 10.6 10.6 0 0 1 20.2 2.6 5.5 5.5 0 0 1-.3 10.9H14.7Z" />
+              <path class="brand-spark" d="M35.8 9.6c.5 3 1.9 4.4 4.8 4.9-2.9.5-4.3 1.9-4.8 4.8-.5-2.9-1.9-4.3-4.8-4.8 2.9-.5 4.3-1.9 4.8-4.9Z" />
+              <circle class="brand-dot" cx="13" cy="13" r="2.2" />
+            </svg>
+          </span>
           <span><strong>云上工坊</strong><small>CLOUD ATELIER</small></span>
         </router-link>
 
@@ -139,8 +145,13 @@ withDefaults(defineProps<{
 .auth-story { position: relative; display: flex; flex-direction: column; min-width: 0; padding: clamp(36px, 5vw, 62px); overflow: hidden; background: linear-gradient(145deg, rgba(233,248,253,.86), rgba(255,241,246,.72) 55%, rgba(238,234,255,.76)); }
 .auth-story::after { content: ''; position: absolute; width: 260px; height: 260px; right: -100px; top: -100px; border-radius: 50%; background: rgba(255,255,255,.37); }
 .brand { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 12px; width: max-content; color: #242930; text-decoration: none; }
-.brand-mark { display: grid; grid-template-columns: repeat(2, 12px); gap: 3px; padding: 7px; border-radius: 11px; background: rgba(255,255,255,.74); box-shadow: 0 9px 20px rgba(82,91,113,.11); transform: rotate(-4deg); transition: transform .3s ease; }
-.brand:hover .brand-mark { transform: rotate(0) scale(1.05); }.brand-mark i { width: 12px; height: 12px; border-radius: 4px; background: #ec7296; }.brand-mark i:nth-child(2) { background: #81cce9; }.brand-mark i:nth-child(3) { background: #73cbb7; }.brand-mark i:nth-child(4) { background: #a493df; }
+.brand-mark { position: relative; display: grid; place-items: center; width: 42px; height: 42px; overflow: hidden; border: 1px solid rgba(255,255,255,.9); border-radius: 14px; background: radial-gradient(circle at 25% 20%,rgba(255,255,255,.72),transparent 28%),linear-gradient(145deg,#82d3ef 3%,#aaa9ed 50%,#f58daf 100%); box-shadow: 0 10px 22px rgba(102,151,207,.24),inset 0 1px 0 rgba(255,255,255,.72); transform: rotate(-3deg); transition: transform .3s ease,box-shadow .3s ease; }
+.brand-mark::after { position: absolute; inset: 3px; content: ''; pointer-events: none; border: 1px solid rgba(255,255,255,.24); border-radius: 11px; }
+.brand-mark svg { position: relative; z-index: 1; width: 35px; height: 35px; }
+.brand-cloud { fill: rgba(255,255,255,.97); filter: drop-shadow(0 2px 2px rgba(76,99,150,.16)); }
+.brand-spark { fill: #fff1a8; }
+.brand-dot { fill: rgba(255,255,255,.78); }
+.brand:hover .brand-mark { transform: rotate(1deg) scale(1.05); box-shadow: 0 13px 27px rgba(216,111,154,.28),inset 0 1px 0 rgba(255,255,255,.8); }
 .brand strong, .brand small { display: block; }.brand strong { font-size: 16px; font-weight: 900; }.brand small { margin-top: 2px; color: #9895a0; font-size: 8px; font-weight: 800; letter-spacing: 1.5px; }
 .story-copy { position: relative; z-index: 2; margin-top: clamp(54px, 8vh, 92px); }.story-eyebrow { color: #a16b7d; font-size: 10px; font-weight: 900; letter-spacing: 2.6px; }.story-copy h1 { margin: 13px 0 0; color: #1c2027; font-size: clamp(37px, 4.2vw, 58px); line-height: 1.12; letter-spacing: -2px; font-weight: 900; }.story-copy h1 span { margin-left: 5px; color: transparent; background: linear-gradient(90deg,#d56788,#778fda); background-clip: text; -webkit-background-clip: text; }.story-copy p { max-width: 530px; margin: 20px 0 0; color: #78818e; font-size: 14px; line-height: 1.9; }
 .story-features { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin-top: 32px; }.story-features > div { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 11px; border: 1px solid rgba(255,255,255,.7); border-radius: 15px; background: rgba(255,255,255,.44); }.feature-icon { display: grid; place-items: center; flex: 0 0 auto; width: 31px; height: 31px; border-radius: 10px; }.feature-icon--rose { color: #cd6382; background: #fff0f5; }.feature-icon--sky { color: #4fa8cc; background: #eaf9ff; }.feature-icon--mint { color: #48a48e; background: #e8faf5; }.story-features strong, .story-features small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.story-features strong { color: #4a4f58; font-size: 10px; }.story-features small { margin-top: 3px; color: #9ba2ad; font-size: 8px; }
