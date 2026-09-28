@@ -143,11 +143,19 @@ const beads = [
 @keyframes copy-enter { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: translateX(0); } }
 
 @media (max-width: 760px) {
-  .beads-page { min-height: calc(100vh - 62px); }
+  .beads-page { min-height: calc(100vh - 108px); padding: 28px 14px 42px; }
   .beads-card { grid-template-columns: 1fr; text-align: center; gap: 44px; }
   .beads-board { width: min(280px, 70vw); gap: 6px; padding: 16px; }
   .beads-badge { right: -8px; }
   .beads-copy .beads-description { margin-left: auto; margin-right: auto; }
+}
+
+@media (max-width: 440px) {
+  .beads-card { gap: 34px; padding: 30px 20px; border-radius: 27px; }
+  .beads-board { width: min(250px, 68vw); gap: 5px; padding: 14px; }
+  .beads-copy h1 { font-size: 42px; letter-spacing: -2px; }
+  .beads-copy > p { font-size: 17px; }
+  .beads-copy .el-button { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -184,8 +184,4 @@ router.beforeEach(async (to, from) => {
   return true
 })
 
-router.afterEach((to) => {
-  document.title = to.meta.title ? `${to.meta.title} · 用户中心` : '用户中心'
-})
-
 export default router

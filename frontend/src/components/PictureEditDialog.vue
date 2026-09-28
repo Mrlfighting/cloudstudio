@@ -146,4 +146,10 @@ async function handleSubmit() {
 .dialog-kicker { color: #6f7ea0; font-size: 10px; font-weight: 800; letter-spacing: 1.8px; }
 .dialog-heading { margin-top: 3px; font-size: 20px; font-weight: 800; color: var(--app-ink); }
 .dialog-subtitle { margin-top: 4px; color: var(--app-muted); font-size: 12px; }
+
+@media (max-width: 480px) {
+  .dialog-intro { align-items: flex-start; }
+  .dialog-icon { width: 38px; height: 38px; flex: 0 0 38px; }
+  .dialog-heading { font-size: 18px; }
+}
 </style>

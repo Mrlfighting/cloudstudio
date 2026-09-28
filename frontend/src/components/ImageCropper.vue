@@ -179,4 +179,14 @@ onBeforeUnmount(destroyCropper)
   max-width: 100%;
   display: block;
 }
+
+@media (max-width: 560px) {
+  .cropper-toolbar { align-items: stretch; }
+  .cropper-toolbar :deep(.el-radio-group) { width: 100%; display: flex; overflow-x: auto; }
+  .cropper-toolbar :deep(.el-radio-button) { flex: 1; }
+  .cropper-toolbar :deep(.el-radio-button__inner) { width: 100%; min-width: 62px; min-height: 40px; padding-inline: 10px; }
+  .toolbar-actions { width: 100%; }
+  .toolbar-actions .el-button { flex: 1; min-height: 40px; margin-left: 0; }
+  .cropper-container { height: clamp(260px, 52dvh, 400px); }
+}
 </style>

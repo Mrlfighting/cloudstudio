@@ -134,5 +134,9 @@ function continueDownload(): void {
 @media (max-width: 560px) {
   .auth-dialog .el-dialog__header { padding: 22px 20px 8px; }
   .auth-dialog .el-dialog__body { padding: 16px 20px 24px; }
+  .dialog-heading { align-items: flex-start; gap: 11px; padding-right: 18px; }
+  .dialog-mark { width: 36px; height: 36px; flex-basis: 36px; }
+  .dialog-heading h2 { font-size: 21px; }
+  .dialog-heading p { font-size: 12px; overflow-wrap: anywhere; }
 }
 </style>

@@ -269,15 +269,18 @@ onMounted(loadSpace)
   .color-preview { min-height: 280px; }
 }
 @media (max-width: 720px) {
-  .color-page { min-height: calc(100vh - 62px); padding-left: 16px; padding-right: 16px; }
+  .color-page { min-height: calc(100vh - 108px); padding-left: 16px; padding-right: 16px; }
   .color-hero { align-items: flex-start; flex-direction: column; padding: 32px 24px; }
   .color-hero h1 { letter-spacing: -2px; }
+  .color-hero__actions { width: 100%; }
+  .color-hero__actions .el-button { flex: 1 1 130px; margin-left: 0; }
   .color-hero__visual { align-self: center; width: 210px; height: 210px; }
   .preset-list { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .color-input-row { grid-template-columns: 42px 1fr; }
   .color-input-row .el-button { grid-column: 1 / -1; }
   .results-head { align-items: flex-start; flex-direction: column; }
   .color-results { padding: 20px 15px; }
+  .color-state { min-height: 360px; padding: 38px 18px; }
 }
 @media (max-width: 480px) { .results-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) {

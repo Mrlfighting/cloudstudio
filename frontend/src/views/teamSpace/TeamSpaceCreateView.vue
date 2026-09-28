@@ -151,5 +151,8 @@ async function handleSubmit() {
   .create-layout {
     grid-template-columns: 1fr;
   }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .actions .el-button { width: 100%; margin-left: 0; }
+  .benefits-panel { padding: 20px 18px; }
 }
 </style>

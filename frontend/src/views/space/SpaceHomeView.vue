@@ -281,11 +281,12 @@ onMounted(load)
   .space-dashboard-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
-  .space-page { min-height: calc(100vh - 62px); padding-left: 16px; padding-right: 16px; }
+  .space-page { min-height: calc(100vh - 108px); padding-left: 16px; padding-right: 16px; }
+  .space-state { min-height: 430px; padding: 42px 18px; border-radius: 25px; }
   .space-hero { align-items: flex-start; flex-direction: column; padding: 32px 24px; }
   .space-hero__main { align-items: flex-start; flex-direction: column; }
   .space-hero__actions { width: 100%; }
-  .space-hero__actions .el-button { flex: 1; }
+  .space-hero__actions .el-button { flex: 1 1 140px; margin-left: 0; }
   .space-stat-grid,.quota-list { grid-template-columns: 1fr; }
   .space-panel,.recent-panel { padding: 20px 16px; }
   .recent-head { align-items: flex-start; flex-direction: column; }

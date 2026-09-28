@@ -216,7 +216,7 @@ onMounted(async () => {
             </el-button>
           </div>
 
-          <el-table :data="team.members" stripe>
+          <el-table class="member-table" :data="team.members" stripe>
             <el-table-column label="用户" min-width="160">
               <template #default="{ row }">
                 <div class="member-cell">
@@ -249,6 +249,32 @@ onMounted(async () => {
               </template>
             </el-table-column>
           </el-table>
+
+          <div class="member-mobile-list">
+            <article v-for="row in team.members" :key="row.user_id" class="member-mobile-card">
+              <div class="member-mobile-head">
+                <div class="member-cell">
+                  <span class="member-name">{{ row.name }}</span>
+                  <span class="muted">@{{ row.username }}</span>
+                </div>
+                <el-tag v-if="!team.canManageMembers" size="small" :type="roleTagType(row.space_role)">
+                  {{ spaceRoleLabel(row.space_role) }}
+                </el-tag>
+              </div>
+              <el-select
+                v-if="team.canManageMembers"
+                :model-value="row.space_role"
+                aria-label="成员角色"
+                @change="(v: SpaceRole) => onRoleChange(row, v)"
+              >
+                <el-option v-for="o in SPACE_ROLE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+              <div class="member-mobile-foot">
+                <span class="muted">加入时间：{{ row.created_at ?? '—' }}</span>
+                <el-button v-if="team.canManageMembers" link type="danger" @click="onRemoveMember(row)">移除</el-button>
+              </div>
+            </article>
+          </div>
         </el-tab-pane>
 
         <!-- 设置 -->
@@ -260,7 +286,7 @@ onMounted(async () => {
                 <el-input v-model="settingsName" maxlength="128" show-word-limit />
               </el-form-item>
               <el-form-item label="空间级别">
-                <el-select v-model="settingsLevel" style="width: 220px">
+                <el-select v-model="settingsLevel" class="settings-level">
                   <el-option v-for="o in SPACE_LEVEL_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
                 </el-select>
               </el-form-item>
@@ -359,5 +385,33 @@ onMounted(async () => {
 .settings-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.settings-level { width: 220px; }
+.member-mobile-list { display: none; }
+
+@media (max-width: 720px) {
+  .header { flex-direction: column; }
+  .header > .el-button { width: 100%; margin-left: 0; }
+  .tab-toolbar { align-items: stretch; flex-direction: column; }
+  .tab-toolbar > .el-button { width: 100%; margin-left: 0; }
+  .filters { width: 100%; }
+  .filters .search,
+  .filters .category,
+  .filters .el-radio-group { width: 100%; }
+  .filters :deep(.el-radio-button) { flex: 1; }
+  .filters :deep(.el-radio-button__inner) { width: 100%; min-height: 40px; }
+  .member-table { display: none; }
+  .member-mobile-list { display: grid; gap: 10px; }
+  .member-mobile-card { display: grid; gap: 13px; padding: 15px; border: 1px solid var(--app-line); border-radius: 16px; background: #fff; box-shadow: var(--app-shadow-soft); }
+  .member-mobile-head,
+  .member-mobile-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .member-mobile-card > .el-select { width: 100%; }
+  .member-mobile-foot { align-items: flex-end; }
+  .member-mobile-foot .muted { overflow-wrap: anywhere; }
+  .settings-card { max-width: none; }
+  .settings-level { width: 100%; }
+  .settings-actions .el-button { width: 100%; }
+  .quota-line { line-height: 1.75; overflow-wrap: anywhere; }
 }
 </style>

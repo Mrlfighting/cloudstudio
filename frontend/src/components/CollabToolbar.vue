@@ -92,4 +92,23 @@ const emit = defineEmits<{
   align-items: center;
   gap: 4px;
 }
+
+@media (max-width: 640px) {
+  .collab-toolbar {
+    left: 8px;
+    right: 8px;
+    top: 8px;
+    width: auto;
+    max-width: none;
+    align-items: stretch;
+    padding: 8px;
+    border-radius: 16px;
+    transform: none;
+  }
+  .status-row { justify-content: center; min-height: 24px; }
+  .editing-hint { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn-row { width: 100%; padding-bottom: 2px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-inline: contain; }
+  .btn-row::-webkit-scrollbar { display: none; }
+  .btn-row .el-button { flex: 0 0 auto; min-width: 40px; min-height: 40px; margin-left: 0; }
+}
 </style>

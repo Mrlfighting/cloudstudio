@@ -304,6 +304,13 @@ onMounted(load)
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 }
 @media (max-width: 390px) { .grid { grid-template-columns: 1fr; } }
+@media (max-width: 480px) {
+  .search-shortcut { display: none; }
+  .hero-search { width: calc(100vw - 28px); height: 58px; margin-top: 24px; padding-left: 15px; }
+  .hero-copy h1 { font-size: 38px; letter-spacing: -1.8px; }
+  .hero-meta { gap: 9px; }
+  .content-toolbar { padding-left: 13px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .explore-hero::after, .hero-orbit, .hero-pixel-field i, .hero-visual-note, .hero-search::before, .masonry :deep(.pic-card) { animation: none; }
   .hero-search, .search-submit, .side-menu-item, .category-list button, .chip { transition: none; }

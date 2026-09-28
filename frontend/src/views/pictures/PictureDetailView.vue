@@ -77,11 +77,15 @@ async function handleSimilarSearch(): Promise<void> {
   if (authenticated) similarVisible.value = true
 }
 
-const previewChips = computed(() => {
-  if (!detail.value) return []
-  return [detail.value.category, detail.value.pic_format, formatDimension(detail.value.pic_width, detail.value.pic_height)]
-    .filter((item): item is string => Boolean(item))
-    .slice(0, 3)
+const detailFigureStyle = computed(() => {
+  const width = detail.value?.pic_width
+  const height = detail.value?.pic_height
+  const aspectRatio = width && height ? width / height : 16 / 10
+
+  return {
+    aspectRatio: String(aspectRatio),
+    maxWidth: `${Math.round(620 * aspectRatio)}px`,
+  }
 })
 
 const detailStats = computed<DetailStat[]>(() => {
@@ -180,17 +184,7 @@ onMounted(async () => {
       <div class="detail-grid">
         <div class="detail-stack">
           <el-card class="detail-card detail-figure-card" shadow="never">
-            <div class="detail-figure">
-              <div class="detail-image-backdrop" :style="{ backgroundImage: `url(${detail.url})` }" aria-hidden="true"></div>
-              <div class="detail-badge">
-                <el-icon><Picture /></el-icon>
-                高清预览
-              </div>
-
-              <div class="detail-figure-tags">
-                <span v-for="chip in previewChips" :key="chip" class="detail-tag-chip">{{ chip }}</span>
-              </div>
-
+            <div class="detail-figure" :style="detailFigureStyle">
               <el-image
                 class="detail-image"
                 :src="detail.url"
@@ -371,14 +365,10 @@ onMounted(async () => {
 .detail-card { border: 1px solid rgba(226,229,237,.88) !important; background: rgba(255,255,255,.88) !important; box-shadow: 0 17px 48px rgba(43,48,62,.075) !important; backdrop-filter: blur(16px); }
 .detail-figure-card { animation: detail-reveal .72s 80ms cubic-bezier(.22,1,.36,1) both; }
 .detail-figure-card :deep(.el-card__body) { padding: 22px 22px 25px; }
-.detail-figure { min-height: 620px; isolation: isolate; background-color: #f6f7fa; background-image: linear-gradient(45deg,rgba(220,223,230,.32) 25%,transparent 25%), linear-gradient(-45deg,rgba(220,223,230,.32) 25%,transparent 25%), linear-gradient(45deg,transparent 75%,rgba(220,223,230,.32) 75%), linear-gradient(-45deg,transparent 75%,rgba(220,223,230,.32) 75%); background-size: 28px 28px; background-position: 0 0,0 14px,14px -14px,-14px 0; box-shadow: inset 0 0 0 1px rgba(225,228,235,.72); }
-.detail-figure::after { content: ''; position: absolute; z-index: -1; inset: 0; background: linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.62)); pointer-events: none; }
-.detail-image-backdrop { position: absolute; z-index: -1; inset: -60px; background-position: center; background-size: cover; opacity: .2; filter: blur(48px) saturate(1.2); transform: scale(1.08); }
-.detail-image { position: relative; z-index: 1; filter: drop-shadow(0 18px 28px rgba(31,36,46,.14)); transition: transform .45s cubic-bezier(.22,1,.36,1), filter .45s ease; }
-.detail-figure:hover .detail-image { transform: scale(1.012); filter: drop-shadow(0 24px 36px rgba(31,36,46,.18)); }
-.detail-badge { z-index: 3; border: 1px solid rgba(255,255,255,.84); background: rgba(255,255,255,.68); box-shadow: 0 9px 24px rgba(52,58,73,.09); }
-.detail-figure-tags { z-index: 3; }
-.detail-tag-chip { min-height: 31px; border: 1px solid rgba(255,255,255,.16); background: rgba(35,40,49,.67); box-shadow: 0 8px 18px rgba(25,29,37,.11); }
+.detail-figure { position: relative; width: 100%; height: auto; min-height: 0; margin-inline: auto; padding: 0; isolation: isolate; overflow: hidden; background: transparent; box-shadow: none; }
+.detail-image { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; max-height: none; filter: none; }
+.detail-image :deep(.el-image__inner) { width: 100%; height: 100%; object-fit: contain !important; object-position: center; }
+.detail-image :deep(.el-image__wrapper) { width: 100%; height: 100%; }
 
 .detail-section { padding: 24px 4px 3px; }
 .detail-title { font-size: clamp(24px,2.3vw,32px); letter-spacing: -.6px; }
@@ -431,17 +421,17 @@ onMounted(async () => {
 
 @media (max-width: 720px) {
   .detail-hero { min-height: auto; padding: 27px 22px; border-radius: 24px; }.detail-hero h1 { font-size: 36px; letter-spacing: -1.3px; }.detail-hero .detail-nav-pills { gap: 7px; }.detail-hero .detail-nav-pill { min-height: 32px; padding: 0 11px; font-size: 11px; }
-  .detail-side { grid-template-columns: 1fr; }.detail-figure-card :deep(.el-card__body) { padding: 12px 12px 18px; }.detail-figure { min-height: 430px; border-radius: 17px; }.detail-section { padding: 20px 4px 3px; }.detail-section-head { flex-direction: column; }.detail-meta-grid { grid-template-columns: 1fr 1fr; }
+  .detail-side { grid-template-columns: 1fr; }.detail-figure-card :deep(.el-card__body) { padding: 12px 12px 18px; }.detail-figure { height: auto; min-height: 0; padding: 0; border-radius: 17px; }.detail-section { padding: 20px 4px 3px; }.detail-section-head { flex-direction: column; }.detail-meta-grid { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 440px) {
-  .detail-hero h1 { font-size: 31px; }.detail-hero p { font-size: 12px; }.detail-figure { min-height: 340px; }.detail-meta-grid { grid-template-columns: 1fr; }.detail-stat { padding: 12px; }
-  .detail-row { grid-template-columns: 1fr; }.detail-label { padding-bottom: 4px; background: transparent; }.detail-value { padding-top: 2px; }.detail-figure-tags { left: 12px; right: 12px; bottom: 12px; }.detail-tag-chip { min-height: 27px; padding: 0 9px; font-size: 10px; }
+  .detail-hero h1 { font-size: 31px; }.detail-hero p { font-size: 12px; }.detail-figure { height: auto; min-height: 0; padding: 0; }.detail-meta-grid { grid-template-columns: 1fr; }.detail-stat { padding: 12px; }
+  .detail-row { grid-template-columns: 1fr; }.detail-label { padding-bottom: 4px; background: transparent; }.detail-value { padding-top: 2px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .detail-hero__orb, .detail-hero__pixels i, .detail-figure-card, .detail-side { animation: none; }
-  .detail-back-button, .detail-nav-pill, .detail-image, .detail-stat, .detail-action-list :deep(.el-button) { transition: none; }
-  .detail-back-button:hover, .detail-nav-pill:hover, .detail-figure:hover .detail-image, .detail-stat:hover, .detail-action-list :deep(.el-button:hover) { transform: none; }
+  .detail-back-button, .detail-nav-pill, .detail-stat, .detail-action-list :deep(.el-button) { transition: none; }
+  .detail-back-button:hover, .detail-nav-pill:hover, .detail-stat:hover, .detail-action-list :deep(.el-button:hover) { transform: none; }
 }
 </style>

@@ -178,4 +178,15 @@ onMounted(load)
   display: flex;
   justify-content: center;
 }
+
+@media (max-width: 720px) {
+  .gallery-header { align-items: stretch; flex-direction: column; }
+  .header-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .header-actions .el-button { width: 100%; min-width: 0; margin-left: 0; }
+  .header-actions .el-button:last-child { grid-column: 1 / -1; }
+  .toolbar { align-items: stretch; }
+  .search, .category, .toolbar .el-radio-group { width: 100%; }
+  .toolbar :deep(.el-radio-button) { flex: 1; }
+  .toolbar :deep(.el-radio-button__inner) { width: 100%; min-height: 40px; }
+}
 </style>

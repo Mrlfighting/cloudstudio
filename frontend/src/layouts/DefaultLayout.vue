@@ -31,8 +31,14 @@ function openAuthentication(mode: 'login' | 'register'): void {
     <el-header class="header" height="72px">
       <div class="header-inner">
         <router-link to="/pictures" class="brand">
-          <span class="brand-mark"><el-icon :size="18"><Picture /></el-icon></span>
-          <span class="brand-copy"><strong>云上工坊</strong><small>WORKSHOP</small></span>
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 48 48" role="img">
+              <path class="brand-cloud" d="M14.7 35.1a6.7 6.7 0 0 1-1.1-13.3 10.6 10.6 0 0 1 20.2 2.6 5.5 5.5 0 0 1-.3 10.9H14.7Z" />
+              <path class="brand-spark" d="M35.8 9.6c.5 3 1.9 4.4 4.8 4.9-2.9.5-4.3 1.9-4.8 4.8-.5-2.9-1.9-4.3-4.8-4.8 2.9-.5 4.3-1.9 4.8-4.9Z" />
+              <circle class="brand-dot" cx="13" cy="13" r="2.2" />
+            </svg>
+          </span>
+          <span class="brand-copy"><strong>云上工坊</strong><small>CLOUD ATELIER</small></span>
         </router-link>
 
         <!-- router 属性：让 el-menu-item 的 index 作为路由路径，点击自动导航 -->
@@ -119,18 +125,41 @@ function openAuthentication(mode: 'login' | 'register'): void {
 }
 
 .brand-mark {
-  width: 34px;
-  height: 34px;
+  position: relative;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  color: #fff;
-  border-radius: 13px 5px 13px 5px;
-  background: linear-gradient(145deg, var(--app-blue), var(--app-primary));
-  box-shadow: 7px 7px 0 rgba(236,114,150,.13);
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.88);
+  border-radius: 13px;
+  background:
+    radial-gradient(circle at 25% 20%, rgba(255,255,255,.72), transparent 28%),
+    linear-gradient(145deg, #82d3ef 3%, #aaa9ed 50%, #f58daf 100%);
+  box-shadow: 0 8px 18px rgba(102,151,207,.24), inset 0 1px 0 rgba(255,255,255,.72);
+  transform: rotate(-2deg);
+  transition: transform .25s ease, box-shadow .25s ease;
 }
+.brand:hover .brand-mark {
+  transform: rotate(2deg) translateY(-1px);
+  box-shadow: 0 11px 22px rgba(216,111,154,.28), inset 0 1px 0 rgba(255,255,255,.8);
+}
+.brand-mark::after {
+  position: absolute;
+  inset: 3px;
+  content: '';
+  pointer-events: none;
+  border: 1px solid rgba(255,255,255,.24);
+  border-radius: 10px;
+}
+.brand-mark svg { width: 32px; height: 32px; overflow: visible; }
+.brand-cloud { fill: rgba(255,255,255,.97); filter: drop-shadow(0 2px 2px rgba(76,99,150,.16)); }
+.brand-spark { fill: #fff1a8; }
+.brand-dot { fill: rgba(255,255,255,.78); }
 .brand-copy { display: flex; flex-direction: column; line-height: 1; letter-spacing: 1px; }
 .brand-copy strong { font-size: 16px; font-weight: 900; }
-.brand-copy small { margin-top: 4px; color: var(--app-muted); font-size: 8px; letter-spacing: 2px; }
+.brand-copy small { margin-top: 5px; color: var(--app-muted); font-size: 7px; letter-spacing: 1.35px; }
 .nav {
   flex: 1;
   min-width: 0;
@@ -177,11 +206,42 @@ function openAuthentication(mode: 'login' | 'register'): void {
   .nav :deep(.el-menu-item) { padding: 0 10px; }
 }
 @media (max-width: 560px) {
-  .header { padding: 0 14px; }
-  .header-inner { height: 62px; }
-  .brand-copy { display: none; }
-  .nav :deep(.el-menu-item) { height: 62px; }
-  .guest-actions .el-button:first-child { display: none; }
-  .guest-actions .el-button { padding: 8px 12px; }
+  .header {
+    height: auto !important;
+    padding: 0 max(12px, env(safe-area-inset-left)) 0 max(12px, env(safe-area-inset-right));
+  }
+  .header-inner {
+    height: auto;
+    min-height: 108px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 58px 50px;
+    gap: 0 12px;
+  }
+  .brand { grid-column: 1; grid-row: 1; width: max-content; }
+  .brand-copy { display: flex; }
+  .brand-copy small { display: none; }
+  .nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: calc(100vw - max(12px, env(safe-area-inset-left)) - max(12px, env(safe-area-inset-right)));
+    margin: 0;
+    mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 18px), transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 18px), transparent);
+    scroll-snap-type: x proximity;
+    overscroll-behavior-inline: contain;
+  }
+  .nav :deep(.el-menu-item) {
+    height: 50px;
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: 12px;
+    scroll-snap-align: start;
+  }
+  .nav :deep(.el-menu-item:first-child) { margin-left: 4px; }
+  .user-area, .guest-actions { grid-column: 2; grid-row: 1; justify-self: end; }
+  .user-trigger { min-width: 44px; min-height: 44px; justify-content: flex-end; }
+  .guest-actions .el-button:first-child { display: inline-flex; }
+  .guest-actions .el-button { min-width: 0; min-height: 40px; padding: 8px 10px; }
 }
 </style>
