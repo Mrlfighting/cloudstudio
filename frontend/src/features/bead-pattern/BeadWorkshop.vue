@@ -62,7 +62,11 @@ const input = ref<HTMLInputElement>(),
         ><b>03 开始创作</b>
       </div>
       <div>
-        <el-button @click="projectInput?.click()">导入项目</el-button
+        <el-button v-if="w.signedIn" type="primary" plain @click="w.openLibrary"
+          >云端作品</el-button
+        >
+        <el-button :disabled="!w.ready" @click="projectInput?.click()"
+          >导入项目</el-button
         ><el-button
           @click="
             w.draftsVisible = true;
@@ -73,7 +77,55 @@ const input = ref<HTMLInputElement>(),
         >
       </div>
     </div>
-    <div class="workshop-grid">
+    <section class="persistence-strip" aria-label="作品保存设置">
+      <div>
+        <strong>{{
+          w.signedIn
+            ? "你的作品，可以跨设备继续"
+            : "本地自动保存，登录后还可同步云端"
+        }}</strong>
+        <p>
+          {{
+            w.cloud
+              ? "当前作品已关联云端，修改后请手动保存。"
+              : "本地工作区自动恢复；云端仅在你主动保存时上传。"
+          }}
+        </p>
+        <p v-if="w.changed" class="cloud-notice">
+          参数已改变，请重新生成后再保存到云端。
+        </p>
+      </div>
+      <div class="persistence-controls">
+        <el-switch
+          aria-label="退出后保留本地草稿"
+          v-if="w.signedIn"
+          :model-value="w.retainLocal"
+          active-text="退出后保留本地草稿"
+          @change="w.retentionChanged"
+        />
+        <el-button
+          type="primary"
+          :loading="w.cloudBusy"
+          :disabled="!w.project || w.changed || w.running || !w.ready"
+          @click="w.saveCloud()"
+          >保存到云端</el-button
+        >
+        <el-button
+          v-if="w.signedIn && w.project"
+          :disabled="w.changed || w.cloudBusy || w.running"
+          @click="w.saveCloud(true)"
+          >另存为新作品</el-button
+        >
+      </div>
+      <div v-if="w.cloudError" class="cloud-error" role="alert">
+        {{ w.cloudError }}
+        <el-button v-if="w.cloudConflict" text @click="w.reloadCloud"
+          >从云端重新载入</el-button
+        >
+        <span v-if="w.cloudConflict">也可使用“另存为新作品”保留当前版本。</span>
+      </div>
+    </section>
+    <div v-loading="!w.ready" class="workshop-grid">
       <aside class="control-column">
         <section class="workshop-panel source-panel">
           <div class="panel-heading">
@@ -404,6 +456,174 @@ const input = ref<HTMLInputElement>(),
       @confirm="w.cropped"
     />
     <el-dialog
+      v-model="w.cloudVisible"
+      title="我的云端拼豆作品"
+      width="860px"
+      append-to-body
+    >
+      <p class="draft-scope">
+        仅本人可见 · 工作源与图纸保存在云端，可跨设备继续创作
+      </p>
+      <div class="private-search">
+        <el-input
+          v-model="w.cloudKeyword"
+          clearable
+          placeholder="搜索云端作品名称"
+          @keyup.enter="
+            w.cloudPage = 1;
+            w.refreshCloud();
+          "
+        />
+        <el-button
+          @click="
+            w.cloudPage = 1;
+            w.refreshCloud();
+          "
+          >搜索作品</el-button
+        >
+        <el-button @click="w.openMigration()">迁移本地作品</el-button>
+      </div>
+      <div v-loading="w.cloudLoading || w.cloudBusy" class="cloud-content">
+        <el-alert
+          v-if="w.cloudError"
+          :title="w.cloudError"
+          type="error"
+          :closable="false"
+        />
+        <div v-if="w.cloudRows.length" class="draft-list">
+          <article
+            v-for="item in w.cloudRows"
+            :key="item.id"
+            class="draft-item cloud-item"
+          >
+            <img
+              v-if="item.has_thumbnail"
+              :src="w.previewUrl(item)"
+              alt="云端作品缩略图"
+              loading="lazy"
+            />
+            <div class="draft-info">
+              <strong>{{ item.name }}</strong
+              ><span
+                >{{ item.width }} × {{ item.height }} 格 ·
+                {{ getPalette(item.palette_id).name }} · v{{
+                  item.revision
+                }}</span
+              >
+              <small
+                >{{ new Date(item.updated_at).toLocaleString("zh-CN") }} ·
+                {{ item.has_source ? "可重新调参" : "仅图纸，无工作源" }}</small
+              >
+              <div>
+                <el-button
+                  size="small"
+                  type="primary"
+                  plain
+                  @click="w.openCloud(item)"
+                  >打开作品</el-button
+                >
+                <el-button size="small" @click="w.renameCloudItem(item)"
+                  >重命名云端作品</el-button
+                >
+                <el-button
+                  size="small"
+                  text
+                  type="danger"
+                  @click="w.removeCloud(item)"
+                  >删除云端作品</el-button
+                >
+              </div>
+            </div>
+          </article>
+        </div>
+        <el-empty
+          v-else-if="!w.cloudLoading && !w.cloudError"
+          description="还没有云端作品，生成后点击保存，或迁移本地草稿"
+        />
+        <el-button v-if="w.cloudError" @click="w.refreshCloud"
+          >重试加载</el-button
+        >
+      </div>
+      <el-pagination
+        v-if="w.cloudTotal > 20"
+        v-model:current-page="w.cloudPage"
+        :total="w.cloudTotal"
+        :page-size="20"
+        layout="prev, pager, next"
+        @current-change="w.refreshCloud"
+      />
+    </el-dialog>
+    <el-dialog
+      v-model="w.migrationVisible"
+      title="选择本地作品同步到云端"
+      width="760px"
+      append-to-body
+      :close-on-click-modal="!w.migrationBusy"
+      :show-close="!w.migrationBusy"
+      :close-on-press-escape="!w.migrationBusy"
+    >
+      <p class="draft-scope">
+        勾选后才上传。同步成功保留本地副本；已关联当前账号的作品将按版本更新，其他账号缓存不会显示。
+        所选作品全部同步成功后，将自动打开云端作品列表。
+      </p>
+      <el-checkbox-group
+        v-model="w.selectedMigrations"
+        class="migration-list"
+        :disabled="w.migrationBusy"
+      >
+        <div
+          v-for="draft in w.migrationRows"
+          :key="draft.id"
+          class="migration-row"
+        >
+          <el-checkbox :value="draft.id"
+            >{{ draft.project.name }} ·
+            {{
+              draft.owner === "guest" ? "游客草稿" : "当前账号草稿"
+            }}</el-checkbox
+          >
+          <small :data-migration="draft.id">{{
+            w.migrationStatuses[draft.id]
+          }}</small>
+        </div>
+      </el-checkbox-group>
+      <el-empty
+        v-if="!w.migrationRows.length"
+        description="没有可同步的本地作品"
+      />
+      <el-progress
+        v-if="w.migrationTotal"
+        :percentage="
+          Math.round((w.migrationCompleted / w.migrationTotal) * 100)
+        "
+      />
+      <p class="migration-feedback" role="status" aria-live="polite">
+        {{
+          w.migrationSummary ||
+          (w.selectedMigrations.length
+            ? `已选择 ${w.selectedMigrations.length} 份作品，点击下方按钮开始同步。`
+            : "请先勾选需要同步的作品。")
+        }}
+        <span v-if="w.migrationBusy"
+          >（{{ w.migrationCompleted }}/{{ w.migrationTotal }}）</span
+        >
+      </p>
+      <template #footer
+        ><el-button
+          :disabled="w.migrationBusy"
+          @click="w.migrationVisible = false"
+          >暂不同步</el-button
+        >
+        <el-button
+          type="primary"
+          :loading="w.migrationBusy"
+          :disabled="!w.selectedMigrations.length"
+          @click="w.migrate"
+          >同步所选作品</el-button
+        ></template
+      >
+    </el-dialog>
+    <el-dialog
       v-model="w.privateVisible"
       title="从我的私有空间导入"
       width="860px"
@@ -486,6 +706,13 @@ const input = ref<HTMLInputElement>(),
             : "当前为游客草稿，登录后的草稿独立保存"
         }}
         · 共 {{ w.drafts.length }} 份
+        <el-button
+          v-if="w.signedIn"
+          text
+          type="primary"
+          @click="w.openMigration()"
+          >选择本地作品迁移</el-button
+        >
       </p>
       <div v-if="w.drafts.length" class="draft-list">
         <article v-for="draft in w.drafts" :key="draft.id" class="draft-item">
@@ -528,6 +755,101 @@ const input = ref<HTMLInputElement>(),
 </template>
 
 <style scoped>
+.persistence-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  margin: 0 0 24px;
+  border: 1px solid #e7e2f2;
+  border-radius: 22px;
+  background: linear-gradient(110deg, #fff, #f4f0ff);
+}
+.persistence-strip strong {
+  color: #62517d;
+  font-size: 15px;
+}
+.persistence-strip p {
+  margin: 7px 0 0;
+  color: #858294;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.persistence-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.persistence-controls .el-button {
+  margin-left: 0;
+}
+.cloud-error {
+  flex-basis: 100%;
+  font-size: 13px;
+  color: #b45e6d;
+  line-height: 1.8;
+}
+.cloud-content {
+  min-height: 160px;
+  padding: 14px 0;
+}
+.migration-list {
+  display: grid;
+  gap: 10px;
+}
+.migration-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f7f5fb;
+  min-width: 0;
+}
+.migration-row :deep(.el-checkbox) {
+  white-space: normal;
+  height: auto;
+  min-height: 32px;
+}
+.migration-row :deep(.el-checkbox__label) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.migration-row small {
+  font-size: 12px;
+  color: #8d7c9c;
+  padding-left: 24px;
+  line-height: 1.7;
+}
+.migration-feedback {
+  margin: 14px 0 0;
+  color: #756482;
+  font-size: 13px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .persistence-strip {
+    padding: 16px;
+  }
+  .persistence-controls {
+    width: 100%;
+  }
+  .persistence-controls .el-switch {
+    width: 100%;
+  }
+  .cloud-item .draft-info > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .cloud-item .el-button {
+    margin-left: 0;
+  }
+}
 .bead-workshop {
   max-width: 1600px;
   margin: auto;
@@ -1042,7 +1364,8 @@ const input = ref<HTMLInputElement>(),
 }
 .material-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* 色号卡片保持紧凑宽度，按可用空间换行，不再拉伸占满整行。 */
+  grid-template-columns: repeat(auto-fill, minmax(0, 190px));
   gap: 10px;
   max-height: 520px;
   overflow: auto;
@@ -1207,9 +1530,6 @@ const input = ref<HTMLInputElement>(),
   .workshop-panel {
     padding: 20px;
   }
-  .material-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .result-metrics strong {
     font-size: 18px;
   }
@@ -1337,6 +1657,7 @@ const input = ref<HTMLInputElement>(),
     min-height: 42px;
   }
   .material-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px;
   }
   .material-item {

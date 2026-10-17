@@ -62,4 +62,53 @@ export interface BeadDraft {
   project: BeadPatternProject;
   source: Blob | null;
   thumbnail: string | null;
+  createdAt?: string;
+  editingParams?: GenerationParams;
+  editingPaletteId?: string;
+  cloud?: CloudLink;
+  cloudClientId?: string;
+}
+
+/** 云端关联只留在账号缓存，不写入可分享的 JSON 备份。 */
+export interface CloudLink {
+  id: string;
+  revision: number;
+  clientId: string;
+}
+export interface BeadWorkspace {
+  owner: string;
+  draftId: string;
+  createdAt: string;
+  updatedAt: string;
+  name: string;
+  params: GenerationParams;
+  paletteId: string;
+  project: BeadPatternProject | null;
+  source: Blob | null;
+  sourceSize: { width: number; height: number };
+  cloud?: CloudLink;
+  cloudClientId?: string;
+}
+export interface CloudItem {
+  id: string;
+  client_id: string;
+  name: string;
+  revision: number;
+  created_at: string;
+  updated_at: string;
+  width: number;
+  height: number;
+  palette_id: string;
+  has_source: boolean;
+  has_thumbnail: boolean;
+}
+export interface CloudDetail extends CloudItem {
+  project_data: BeadPatternProject;
+}
+export interface MigrationRecord {
+  key: string;
+  owner: string;
+  sourceId: string;
+  fingerprint: string;
+  cloud: CloudLink;
 }

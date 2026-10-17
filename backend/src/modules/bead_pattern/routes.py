@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Response
 from ...infrastructure.auth.dependencies import get_current_user
 from ...infrastructure.config.settings import get_settings
 from .adapter import get_private_picture
+from .cloud_routes import router as cloud_router
 from .service import BeadSourceService
 
 router = APIRouter(tags=["拼豆工坊"])
@@ -32,3 +33,7 @@ async def read_private_source(
     return Response(data, media_type=mime, headers={
         "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff",
     })
+
+
+# 固定私有来源接口优先注册，云端作品保持独立子路由。
+router.include_router(cloud_router)

@@ -1,6 +1,15 @@
 /** 独立工作台状态与数据流；账号切换、取消操作均通过代次隔离异步结果。 */
-import { computed, onBeforeUnmount, reactive, ref, shallowRef, watch } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  reactive,
+  ref,
+  shallowRef,
+  watch,
+} from "vue";
+import { ElMessage } from "element-plus";
+import { beadMessageBox as ElMessageBox, beadDialogDepth } from "./dialogs.ts";
 import { useAuthStore } from "@/stores/auth";
 import { useAuthGateStore } from "@/stores/authGate";
 import { spaceApi } from "@/api/space";
@@ -10,11 +19,23 @@ import { PALETTES, getPalette } from "./palettes.ts";
 import { gridSize, usageOf } from "./core.ts";
 import { prepareSource, sourcePixels } from "./image.ts";
 import { createGenerator } from "./generation.ts";
-import { listDrafts, saveDraft, deleteDraft } from "./storage.ts";
+import {
+  listDrafts,
+  saveDraft,
+  deleteDraft,
+  loadWorkspace,
+  saveWorkspace,
+} from "./storage.ts";
+import { useCloudWorkshop } from "./useCloudWorkshop.ts";
 import { parseProject } from "./project.ts";
 import { downloadPng, materialText, thumbnail } from "./export.ts";
 import { DEFAULT_PARAMS, ENGINE_VERSION, PALETTE_REVISION } from "./types.ts";
-import type { BeadDraft, BeadPatternProject } from "./types.ts";
+import type {
+  BeadDraft,
+  BeadPatternProject,
+  BeadWorkspace,
+  CloudLink,
+} from "./types.ts";
 
 export function useWorkshop() {
   const auth = useAuthStore(),
@@ -48,6 +69,12 @@ export function useWorkshop() {
     page = ref(1),
     total = ref(0);
   const generator = createGenerator();
+  const cloud = shallowRef<CloudLink>(),
+    cloudClientId = ref(draftId.value);
+  const createdAt = ref(new Date().toISOString()),
+    ready = ref(false);
+  let restorePromise: Promise<void> = Promise.resolve();
+  let workspaceTimer: ReturnType<typeof setTimeout> | undefined;
   let epoch = 0,
     task = 0,
     fileTask = 0,
@@ -105,16 +132,18 @@ export function useWorkshop() {
     progress.value = 0;
   }
   async function refreshDrafts() {
-    const scope = owner.value;
+    const scope = owner.value,
+      boundary = epoch;
     try {
       const rows = await listDrafts(scope);
-      if (owner.value === scope) drafts.value = rows;
+      if (owner.value === scope && boundary === epoch) drafts.value = rows;
     } catch (error) {
       if (owner.value === scope) saveState.value = message(error);
     }
   }
   async function persist() {
     if (!project.value) return;
+    const boundary = epoch;
     const scope = owner.value,
       id = draftId.value,
       snapshot = parseProject(project.value);
@@ -127,21 +156,146 @@ export function useWorkshop() {
         snapshot.pattern,
         getPalette(snapshot.paletteId).colors,
       ),
+      createdAt: createdAt.value,
+      editingParams: { ...params },
+      editingPaletteId: paletteId.value,
+      cloud: cloud.value ? { ...cloud.value } : undefined,
+      cloudClientId: cloudClientId.value,
     };
+    const workspace = snapshotWorkspace();
     try {
       await saveDraft(record);
-      if (scope === owner.value && id === draftId.value) {
+      if (scope !== owner.value || boundary !== epoch || id !== draftId.value)
+        return;
+      await saveWorkspace(workspace);
+      if (scope === owner.value && boundary === epoch && id === draftId.value) {
         saveState.value = "已自动保存到当前浏览器";
         await refreshDrafts();
       }
     } catch (error) {
-      if (scope === owner.value) saveState.value = message(error);
+      if (scope === owner.value && boundary === epoch)
+        saveState.value = message(error);
     }
   }
+  function snapshotWorkspace(): BeadWorkspace {
+    return {
+      owner: owner.value,
+      draftId: draftId.value,
+      createdAt: createdAt.value,
+      updatedAt: new Date().toISOString(),
+      name: name.value,
+      params: { ...params },
+      paletteId: paletteId.value,
+      project: project.value ? parseProject(project.value) : null,
+      source: source.value,
+      sourceSize: { ...sourceSize.value },
+      cloud: cloud.value ? { ...cloud.value } : undefined,
+      cloudClientId: cloudClientId.value,
+    };
+  }
+  async function applyWorkspace(value: BeadWorkspace) {
+    const scope = epoch;
+    if (value.owner !== owner.value) return;
+    ready.value = false;
+    clearTimeout(workspaceTimer);
+    stop();
+    fileTask++;
+    let size = value.sourceSize;
+    try {
+      if (value.source) {
+        const bitmap = await createImageBitmap(value.source);
+        size = { width: bitmap.width, height: bitmap.height };
+        bitmap.close();
+      }
+    } catch (error) {
+      if (scope === epoch) ready.value = true;
+      throw error;
+    }
+    if (scope !== epoch || value.owner !== owner.value) return;
+    resetSource(value.source);
+    sourceSize.value = { ...size };
+    project.value = value.project ? parseProject(value.project) : null;
+    name.value = value.name;
+    Object.assign(params, value.params);
+    paletteId.value = value.paletteId;
+    draftId.value = value.draftId;
+    createdAt.value = value.createdAt;
+    cloud.value = value.cloud;
+    cloudClientId.value = value.cloudClientId ?? value.draftId;
+    lastDuration.value = null;
+    warnings.value =
+      value.project && !value.source
+        ? ["此作品不含工作源；重新转换需另选图片。"]
+        : [];
+    preparing.value = false;
+    ready.value = true;
+  }
+  async function persistWorkspace() {
+    if (!ready.value || preparing.value) return;
+    const scope = epoch,
+      workspace = snapshotWorkspace();
+    try {
+      await saveWorkspace(workspace);
+      if (
+        workspace.project &&
+        scope === epoch &&
+        workspace.draftId === draftId.value
+      ) {
+        await saveDraft({
+          id: workspace.draftId,
+          owner: workspace.owner,
+          project: workspace.project,
+          source: workspace.source,
+          thumbnail: thumbnail(
+            workspace.project.pattern,
+            getPalette(workspace.project.paletteId).colors,
+          ),
+          createdAt: workspace.createdAt,
+          editingParams: workspace.params,
+          editingPaletteId: workspace.paletteId,
+          cloud: workspace.cloud,
+          cloudClientId: workspace.cloudClientId,
+        });
+      }
+      if (scope === epoch && !running.value)
+        saveState.value = "工作区已自动保存到当前浏览器";
+    } catch (error) {
+      if (scope === epoch) saveState.value = message(error);
+    }
+  }
+  const library = useCloudWorkshop({
+    deferPrompt: computed(
+      () =>
+        gate.visible ||
+        beadDialogDepth.value > 0 ||
+        privateVisible.value ||
+        preparing.value ||
+        cropVisible.value,
+    ),
+    owner,
+    project,
+    cloud,
+    cloudClientId,
+    changed,
+    ready,
+    snapshot: snapshotWorkspace,
+    apply: applyWorkspace,
+    persist,
+    confirmReplace,
+    closeLocalLibrary: () => {
+      draftsVisible.value = false;
+    },
+    readyWait: async () => {
+      await nextTick();
+      await restorePromise;
+    },
+  });
   // 登录、退出和换号立即取消读图及计算，旧请求不能把私有结果带到新账号。
   watch(
     owner,
     () => {
+      ready.value = false;
+      clearTimeout(workspaceTimer);
       epoch++;
       fileTask++;
       listTask++;
@@ -151,6 +305,12 @@ export function useWorkshop() {
       sourceSize.value = { width: 0, height: 0 };
       drafts.value = [];
       draftId.value = crypto.randomUUID();
+      cloud.value = undefined;
+      cloudClientId.value = draftId.value;
+      createdAt.value = new Date().toISOString();
+      name.value = "我的拼豆图纸";
+      Object.assign(params, DEFAULT_PARAMS);
+      paletteId.value = PALETTES[0]!.id;
       privateVisible.value = false;
       privateItems.value = [];
       preparing.value = false;
@@ -160,9 +320,45 @@ export function useWorkshop() {
       warnings.value = [];
       lastDuration.value = null;
       saveState.value = "草稿按当前账号隔离";
-      void refreshDrafts();
+      const scope = epoch,
+        account = owner.value;
+      restorePromise = (async () => {
+        try {
+          const saved = await loadWorkspace(account);
+          if (scope !== epoch) return;
+          if (saved) {
+            await applyWorkspace(saved);
+            if (scope === epoch) saveState.value = "已自动恢复上次工作区";
+          }
+        } catch (error) {
+          if (scope === epoch) saveState.value = message(error);
+        } finally {
+          if (scope === epoch) {
+            ready.value = true;
+            void refreshDrafts();
+          }
+        }
+      })();
     },
-    { immediate: true },
+    { immediate: true, flush: "sync" },
+  );
+  watch(
+    [
+      () => JSON.stringify(params),
+      paletteId,
+      name,
+      project,
+      source,
+      draftId,
+      cloud,
+    ],
+    () => {
+      clearTimeout(workspaceTimer);
+      if (ready.value)
+        workspaceTimer = setTimeout(() => {
+          void persistWorkspace();
+        }, 500);
+    },
   );
   async function confirmReplace(): Promise<boolean> {
     if (!project.value) return true;
@@ -195,7 +391,12 @@ export function useWorkshop() {
       resetSource(prepared.blob);
       project.value = null;
       name.value = title.slice(0, 128) || "我的拼豆图纸";
-      if (!crop) draftId.value = crypto.randomUUID();
+      if (!crop) {
+        draftId.value = crypto.randomUUID();
+        cloud.value = undefined;
+        cloudClientId.value = draftId.value;
+        createdAt.value = new Date().toISOString();
+      }
       warnings.value = prepared.animated
         ? ["动画图片仅使用静态首帧转换。"]
         : [];
@@ -209,10 +410,11 @@ export function useWorkshop() {
     }
   }
   async function selected(event: Event) {
+    const scope = epoch;
     const element = event.target as HTMLInputElement,
       file = element.files?.[0];
     element.value = "";
-    if (file && (await confirmReplace()))
+    if (file && (await confirmReplace()) && scope === epoch)
       await loadImage(file, file.name.replace(/\.[^.]+$/, ""));
   }
   async function generate() {
@@ -310,6 +512,11 @@ export function useWorkshop() {
       paletteId.value = parsed.paletteId;
       Object.assign(params, parsed.params);
       draftId.value = draft.id;
+      createdAt.value = draft.createdAt ?? parsed.updatedAt;
+      cloud.value = draft.cloud;
+      cloudClientId.value = draft.cloudClientId ?? draft.id;
+      if (draft.editingParams) Object.assign(params, draft.editingParams);
+      if (draft.editingPaletteId) paletteId.value = draft.editingPaletteId;
       warnings.value = [];
       lastDuration.value = null;
       saveState.value = "已恢复本地草稿";
@@ -319,14 +526,15 @@ export function useWorkshop() {
     }
   }
   async function renameDraft(draft: BeadDraft) {
-    const scope = owner.value;
+    const scope = owner.value,
+      boundary = epoch;
     try {
       const answer = await ElMessageBox.prompt("请输入图纸名称", "重命名草稿", {
         inputValue: draft.project.name,
         inputPattern: /^.{1,128}$/,
         inputErrorMessage: "名称需为 1–128 个字符",
       });
-      if (scope !== owner.value) return;
+      if (scope !== owner.value || boundary !== epoch) return;
       const updated = {
         ...draft,
         project: {
@@ -336,6 +544,7 @@ export function useWorkshop() {
         },
       };
       await saveDraft(updated);
+      if (scope !== owner.value || boundary !== epoch) return;
       if (draft.id === draftId.value && project.value) {
         project.value = updated.project;
         name.value = updated.project.name;
@@ -346,19 +555,24 @@ export function useWorkshop() {
     }
   }
   async function removeDraft(draft: BeadDraft) {
-    const scope = owner.value;
+    const scope = owner.value,
+      boundary = epoch;
     try {
       await ElMessageBox.confirm(
         "删除后只能通过已导出的项目文件恢复。",
         `删除“${draft.project.name}”？`,
         { type: "warning" },
       );
-      if (scope !== owner.value) return;
-      await deleteDraft(draft.id, scope);
+      if (scope !== owner.value || boundary !== epoch) return;
+      clearTimeout(workspaceTimer);
       if (draftId.value === draft.id) {
         draftId.value = crypto.randomUUID();
+        cloud.value = undefined;
+        cloudClientId.value = draftId.value;
+        createdAt.value = new Date().toISOString();
         saveState.value = "草稿已删除，当前画布仍可导出";
       }
+      await deleteDraft(draft.id, scope);
       await refreshDrafts();
     } catch (error) {
       if (error instanceof Error) ElMessage.error(message(error));
@@ -384,6 +598,9 @@ export function useWorkshop() {
       paletteId.value = parsed.paletteId;
       Object.assign(params, parsed.params);
       draftId.value = crypto.randomUUID();
+      cloud.value = undefined;
+      cloudClientId.value = draftId.value;
+      createdAt.value = new Date().toISOString();
       lastDuration.value = null;
       warnings.value = [
         "项目备份不含原图。可直接导出图纸；重新调参需另选图片。",
@@ -487,6 +704,8 @@ export function useWorkshop() {
     }
   }
   onBeforeUnmount(() => {
+    clearTimeout(workspaceTimer);
+    void persistWorkspace();
     epoch++;
     fileTask++;
     listTask++;
@@ -494,6 +713,9 @@ export function useWorkshop() {
     resetSource(null);
   });
   return {
+    ...library,
+    cloud,
+    ready,
     auth,
     params,
     paletteId,

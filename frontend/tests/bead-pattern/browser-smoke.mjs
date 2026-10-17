@@ -8,10 +8,12 @@ const [runtime, sourceFile, stressFile, outputDir] = process.argv.slice(2)
 if (!runtime || !sourceFile || !stressFile || !outputDir) throw new Error('参数：Playwright 入口、普通测试图、压力测试图、输出目录')
 const { chromium } = await import(pathToFileURL(runtime).href)
 await mkdir(outputDir, { recursive: true })
-const context = await chromium.launchPersistentContext(path.join(outputDir, 'browser-profile'), {
+const browser = await chromium.launch({
   executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true,
-  viewport: { width: 1440, height: 1100 }, acceptDownloads: true, downloadsPath: path.join(outputDir, 'downloads'),
+  downloadsPath: path.join(outputDir,'downloads'),
 })
+// 每次运行用独立测试上下文，刷新仍保留数据，避免上一轮失败遗留工作区干扰。
+const context = await browser.newContext({viewport:{width:1440,height:1100},acceptDownloads:true})
 const page = await context.newPage(), errors = [], measures = []
 page.on('pageerror', (error) => { errors.push(error.message); console.log('PAGE_ERROR', error.message) })
 page.on('console', (msg) => { if (msg.type() === 'error' && !msg.text().includes('Failed to load resource')) { errors.push(msg.text()); console.log('CONSOLE_ERROR', msg.text()) } })
@@ -63,10 +65,13 @@ try {
   await page.reload(); await page.locator('.bead-workshop').waitFor()
   await page.getByRole('button', { name: /本地草稿/ }).click()
   await page.getByRole('button', { name: '继续创作', exact: true }).first().click()
+  await page.getByRole('button', { name: '继续', exact: true }).last().click()
+  await page.locator('.el-message-box').last().waitFor({state:'hidden'})
   await page.locator('.result-metrics').waitFor(); await page.locator('.source-preview img').waitFor()
   // 最大规格使用高颜色变化样本，取消后旧图纸必须仍然有效。
   await page.locator('input[type=file][accept^="image"]').setInputFiles(stressFile)
-  await page.getByRole('button', { name: '继续', exact: true }).click()
+  await page.getByRole('button', { name: '继续', exact: true }).last().click()
+  await page.locator('.el-message-box').last().waitFor({state:'hidden'})
   await page.locator('.source-preview img').waitFor()
   await page.getByRole('slider').first().focus(); await page.getByRole('slider').first().press('End')
   await page.getByRole('spinbutton').first().fill('128'); await page.getByRole('spinbutton').first().press('Tab')
@@ -89,14 +94,16 @@ try {
   await generate('mobile-emulated-stress-200-128-cpu4x')
   await page.getByRole('button', { name: /本地草稿/ }).click()
   await page.locator('.draft-item').filter({ has: page.getByText('source', { exact: true }) }).first().getByRole('button', { name: '继续创作', exact: true }).click()
-  await page.getByRole('button', { name: '继续', exact: true }).click()
+  await page.getByRole('button', { name: '继续', exact: true }).last().click()
+  await page.locator('.el-message-box').last().waitFor({state:'hidden'})
   await page.getByText('已恢复本地草稿', { exact: false }).waitFor()
   await generate('mobile-emulated-default-100-cpu4x')
   await page.evaluate(() => window.scrollTo(0, 0))
   await page.screenshot({ path: path.join(outputDir, 'mobile.png'), fullPage: true })
   await session.send('Emulation.setCPUThrottlingRate', { rate: 1 })
   await page.locator('input[type=file][accept=".json"]').setInputFiles(jsonPath)
-  await page.getByRole('button', { name: '继续', exact: true }).click()
+  await page.getByRole('button', { name: '继续', exact: true }).last().click()
+  await page.locator('.el-message-box').last().waitFor({state:'hidden'})
   await page.getByText('项目备份不含原图。可直接导出图纸；重新调参需另选图片。', { exact: true }).waitFor()
   assert.equal(await page.locator('.source-preview').count(), 0)
   assert.ok(await page.getByRole('button', { name: '生成拼豆图纸', exact: true }).isDisabled())
@@ -107,6 +114,7 @@ try {
   await page.route('**/api/v1/auth/login', (route) => { userId = 101; return route.fulfill({ json: { csrf_token: 'local-qa-only' } }) })
   await page.route('**/api/v1/auth/logout', (route) => { userId = null; return route.fulfill({ json: { message: '已退出' } }) })
   await page.route('**/api/v1/users/me', (route) => route.fulfill({ json: { id: userId, name: '验收账号', username: 'beadtest', user_role: 'user', is_superuser: false, email: null, profile_image_url: '', is_deleted: false, email_verified: false } }))
+  await page.route('**/api/v1/bead-patterns/?*', route => route.fulfill({json:{data:[],total_count:0}}))
   await page.route('**/api/v1/spaces/my', (route) => route.fulfill({ status: noPrivateSpace ? 404 : 200, json: noPrivateSpace ? { detail: '空间不存在' } : { id: 1, name: '验收空间', status: 'active' } }))
   await page.route('**/api/v1/spaces/my/pictures?*', (route) => route.fulfill({ json: { data: [{ id: 501, name: '验收私有图片', url: 'http://127.0.0.1:5173/bead-qa-thumbnail.png', pic_width: 1280, pic_height: 960, tags: [], category: '风景' }], total_count: 1, has_more: false } }))
   await page.route('**/bead-qa-thumbnail.png', (route) => route.fulfill({ body: sourceBytes, contentType: 'image/png' }))
@@ -121,6 +129,8 @@ try {
   await picker.getByRole('button', { name: /验收私有图片/ }).click()
   await page.locator('.source-preview img').waitFor()
   assert.equal(await page.locator('.count-badge').innerText(), '0')
+  const migration = page.getByRole('dialog', {name:'选择本地作品同步到云端',exact:true})
+  await migration.waitFor(); await migration.getByRole('button',{name:'暂不同步',exact:true}).click()
   await generate('private-source-ui-fixture')
   noPrivateSpace = true
   await page.getByRole('button', { name: '私有空间导入', exact: true }).click()
@@ -136,7 +146,8 @@ try {
     const auth = useAuthStore()
     auth.setUser({ ...auth.user, id: 202 })
   })
-  await page.getByRole('button', { name: '继续', exact: true }).click()
+  // 换号直接关闭旧确认框，不能让旧账号操作继续，也不残留私有名称。
+  await page.locator('.el-message-box').last().waitFor({state:'hidden'})
   assert.equal(await page.locator('.result-metrics').count(), 0)
   assert.equal(await page.locator('.source-preview').count(), 0)
   await page.reload(); await page.locator('.bead-workshop').waitFor()
@@ -154,4 +165,4 @@ try {
   await page.screenshot({ path: path.join(outputDir, 'failure.png'), fullPage: true }).catch(() => {})
   await writeFile(path.join(outputDir, 'failure.txt'), String(error) + '\n' + await page.locator('body').innerText().catch(() => ''))
   throw error
-} finally { await context.close() }
+} finally { await context.close(); await browser.close() }
