@@ -58,6 +58,9 @@ def png(edge=20):
 
 async def create(client, client_id=None, value=None, source=None):
     """显式 multipart；user_id 为伪造值，服务端必须忽略。"""
+    me = await client.get("/api/v1/users/me")
+    if me.status_code == 200:
+        client.headers["X-Bead-Owner"] = str(me.json()["id"])
     return await client.post(
         URL,
         data={"client_id": str(client_id or uuid4()), "project": json.dumps(value or project()), "user_id": "999999"},
@@ -113,6 +116,7 @@ async def test_cloud_other_user_even_admin_denied(auth_client, test_user_2):
         return {**test_user_2, "user_role": "admin", "is_superuser": True}
 
     app.dependency_overrides[get_current_user] = other
+    auth_client.headers["X-Bead-Owner"] = str(test_user_2["id"])
     for suffix in ("", "/source", "/thumbnail"):
         assert (await auth_client.get(URL + row["id"] + suffix)).status_code == 404
     assert (await auth_client.patch(URL + row["id"], json={"name": "越权", "revision": 1})).status_code == 404
@@ -244,3 +248,35 @@ async def test_cloud_commit_failure_rolls_back(auth_client, db_session, monkeypa
     assert (await create(auth_client)).status_code == 500
     monkeypatch.setattr(db_session, "commit", original)
     assert (await db_session.execute(select(func.count()).select_from(BeadPattern))).scalar_one() == 0
+
+
+async def test_expected_owner_rejects_shared_cookie_switch(client, test_user, test_user_2, db_session, monkeypatch):
+    """真实会话属于B、旧标签页预期A时，所有拼豆接口拒绝，文件校验和数据库写入均不执行。"""
+    login = await client.post(
+        "/api/v1/auth/login", data={"username": test_user_2["username"], "password": test_user_2["password"]}
+    )
+    client.headers.update({"X-CSRF-Token": login.json()["csrf_token"], "X-Bead-Owner": str(test_user["id"])})
+    files = AsyncMock()
+    monkeypatch.setattr(persistence, "files_data", files)
+    responses = [
+        await client.post(URL, data={"client_id": str(uuid4()), "project": json.dumps(project())}),
+        await client.get(URL),
+        await client.get(URL + "1"),
+        await client.put(URL + "1", data={"revision": 1, "project": json.dumps(project())}),
+        await client.patch(URL + "1", json={"name": "旧账号误写", "revision": 1}),
+        await client.delete(URL + "1", params={"revision": 1}),
+        await client.get(URL + "1/source"),
+        await client.get(URL + "sources/private/1"),
+    ]
+    for response in responses:
+        assert response.status_code == 409, response.text
+        assert response.headers["x-bead-session-changed"] == "1"
+    files.assert_not_awaited()
+    assert (await db_session.execute(select(func.count()).select_from(BeadPattern))).scalar_one() == 0
+    del client.headers["X-Bead-Owner"]
+    assert (await client.get(URL)).status_code == 428
+    assert (await client.get(URL + "1/thumbnail", params={"owner": test_user["id"]})).status_code == 409
+    assert (await client.get(URL + "1/thumbnail")).status_code == 428
+    assert (await client.get(URL + "1/thumbnail", params={"owner": test_user_2["id"]})).status_code == 404
+    client.headers["X-Bead-Owner"] = str(test_user_2["id"])
+    assert (await client.get(URL)).status_code == 200

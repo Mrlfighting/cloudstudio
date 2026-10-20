@@ -94,6 +94,11 @@ const input = ref<HTMLInputElement>(),
         <p v-if="w.changed" class="cloud-notice">
           参数已改变，请重新生成后再保存到云端。
         </p>
+        <p v-if="w.pendingCreate" class="cloud-notice" role="status">
+          有一次{{
+            w.pendingCreate.asNew ? "另存" : "创建"
+          }}尚未确认。重试会核对当时的图纸和图片，不会重复创建；当前修改仍保留在本地。
+        </p>
       </div>
       <div class="persistence-controls">
         <el-switch
@@ -106,15 +111,26 @@ const input = ref<HTMLInputElement>(),
         <el-button
           type="primary"
           :loading="w.cloudBusy"
-          :disabled="!w.project || w.changed || w.running || !w.ready"
+          :disabled="
+            !w.project ||
+            (w.changed && !w.pendingCreate) ||
+            w.running ||
+            !w.ready ||
+            w.pendingLoading
+          "
           @click="w.saveCloud()"
-          >保存到云端</el-button
+          >{{ w.pendingCreate ? "重试云端保存" : "保存到云端" }}</el-button
         >
         <el-button
           v-if="w.signedIn && w.project"
-          :disabled="w.changed || w.cloudBusy || w.running"
+          :disabled="
+            (w.changed && !w.pendingCreate) ||
+            w.cloudBusy ||
+            w.running ||
+            w.pendingLoading
+          "
           @click="w.saveCloud(true)"
-          >另存为新作品</el-button
+          >{{ w.pendingCreate?.asNew ? "重试另存" : "另存为新作品" }}</el-button
         >
       </div>
       <div v-if="w.cloudError" class="cloud-error" role="alert">
@@ -585,6 +601,15 @@ const input = ref<HTMLInputElement>(),
           <small :data-migration="draft.id">{{
             w.migrationStatuses[draft.id]
           }}</small>
+          <el-button
+            v-if="w.migrationIssues[draft.id]"
+            size="small"
+            type="primary"
+            plain
+            :disabled="w.migrationBusy"
+            @click.stop="w.migrateAsNew(draft)"
+            >作为新作品同步</el-button
+          >
         </div>
       </el-checkbox-group>
       <el-empty

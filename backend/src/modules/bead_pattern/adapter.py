@@ -4,15 +4,16 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from ...infrastructure.dependencies import AsyncSessionDep, CurrentUserDep
+from ...infrastructure.dependencies import AsyncSessionDep
 from ..common.utils.error_handler import handle_exception
 from ..space.dependencies import SpaceServiceDep
+from .dependencies import BeadUserDep
 
 
 async def get_private_picture(
     picture_id: int,
     db: AsyncSessionDep,
-    current_user: CurrentUserDep,
+    current_user: BeadUserDep,
     space_service: SpaceServiceDep,
 ) -> dict[str, Any]:
     """通过既有只读查询取得本人图片，工具侧额外拒绝封禁空间。"""

@@ -65,6 +65,7 @@ async function auth(page, account) {
 async function api(page, method = "get", suffix = "", data) {
   return page.evaluate(
     async ({ method, suffix, data }) => {
+      const { useAuthStore } = await import("/src/stores/auth.ts");
       const token =
         document.cookie
           .split("; ")
@@ -77,6 +78,7 @@ async function api(page, method = "get", suffix = "", data) {
         headers: {
           "Content-Type": "application/json",
           "X-CSRF-Token": decodeURIComponent(token),
+          "X-Bead-Owner": String(useAuthStore().user?.id ?? ""),
         },
         body: data ? JSON.stringify(data) : undefined,
       });
@@ -197,7 +199,7 @@ try {
   await page.reload();
   await page.locator(".result-metrics").waitFor();
   await page.locator(".source-preview img").waitFor();
-  assert.equal((await storeCounts(page, "guest")).version, 2);
+  assert.equal((await storeCounts(page, "guest")).version, 3);
   checks.push("旧草稿升级、Blob 恢复与刷新自动恢复");
   await page.getByRole("spinbutton").first().fill("35");
   await page.getByRole("spinbutton").first().press("Tab");
@@ -268,7 +270,7 @@ try {
   await prompt.locator("input").fill("保留的云端作品");
   await prompt.getByRole("button", { name: "确定", exact: true }).click();
   await library.getByText("保留的云端作品", { exact: true }).waitFor();
-  await page.locator('.el-message-box').last().waitFor({state:'hidden'});
+  await page.locator(".el-message-box").last().waitFor({ state: "hidden" });
   await page.screenshot({
     path: path.join(outputDir, "cloud-desktop.png"),
     fullPage: true,
@@ -322,13 +324,14 @@ try {
   await migration
     .getByRole("button", { name: "同步所选作品", exact: true })
     .click();
-  await migration
-    .waitFor({ state: "hidden" });
+  await migration.waitFor({ state: "hidden" });
   await library.waitFor();
   assert.equal((await api(page)).data.total_count, 1);
   await library.locator(".el-dialog__headerbtn").click();
   await page.getByRole("button", { name: /本地草稿/ }).click();
-  await page.getByRole("button", { name: "选择本地作品迁移", exact: true }).click();
+  await page
+    .getByRole("button", { name: "选择本地作品迁移", exact: true })
+    .click();
   await migration.waitFor();
   await migration.locator(".el-checkbox").first().click();
   await migration
@@ -336,7 +339,9 @@ try {
     .click();
   await migration.waitFor({ state: "hidden" });
   await library.waitFor();
-  await page.getByRole("dialog", { name: "当前浏览器的本地草稿", exact: true }).waitFor({ state: "hidden" });
+  await page
+    .getByRole("dialog", { name: "当前浏览器的本地草稿", exact: true })
+    .waitFor({ state: "hidden" });
   assert.equal((await api(page)).data.total_count, 1);
   assert.equal((await api(page, "get", original.id)).status, 404);
   checks.push("迁移成功自动显示云端作品、关闭本地弹框、重复同步幂等与账号隔离");
@@ -346,8 +351,12 @@ try {
     .click();
   await page.locator(".result-metrics").waitFor();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.waitForFunction(() => [...document.querySelectorAll('.el-overlay')].every(el => getComputedStyle(el).display === 'none'));
-  await page.locator('.el-message').last().waitFor({state:'hidden'});
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll(".el-overlay")].every(
+      (el) => getComputedStyle(el).display === "none",
+    ),
+  );
+  await page.locator(".el-message").last().waitFor({ state: "hidden" });
   assert.ok(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

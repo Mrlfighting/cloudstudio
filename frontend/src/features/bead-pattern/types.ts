@@ -112,3 +112,16 @@ export interface MigrationRecord {
   fingerprint: string;
   cloud: CloudLink;
 }
+
+/** 冻结一次待确认创建；网络重试/刷新后复用标识、参数和图片，不重新发起新建意图。 */
+export interface PendingCloudCreate {
+  key: string;
+  owner: string;
+  draftId: string;
+  scope: "workshop" | "migration";
+  clientId: string;
+  asNew: boolean;
+  project: BeadPatternProject;
+  source: Blob | null;
+  thumbnail: string | null;
+}

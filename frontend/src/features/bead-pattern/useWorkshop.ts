@@ -13,7 +13,7 @@ import { beadMessageBox as ElMessageBox, beadDialogDepth } from "./dialogs.ts";
 import { useAuthStore } from "@/stores/auth";
 import { useAuthGateStore } from "@/stores/authGate";
 import { spaceApi } from "@/api/space";
-import { http } from "@/api/http";
+import { cloudRequest } from "./cloudApi.ts";
 import type { PictureListItemRead } from "@/types/picture";
 import { PALETTES, getPalette } from "./palettes.ts";
 import { gridSize, usageOf } from "./core.ts";
@@ -75,6 +75,7 @@ export function useWorkshop() {
     ready = ref(false);
   let restorePromise: Promise<void> = Promise.resolve();
   let workspaceTimer: ReturnType<typeof setTimeout> | undefined;
+  let workspaceRevision = 0;
   let epoch = 0,
     task = 0,
     fileTask = 0,
@@ -143,7 +144,8 @@ export function useWorkshop() {
   }
   async function persist() {
     if (!project.value) return;
-    const boundary = epoch;
+    const boundary = epoch,
+      editRevision = workspaceRevision;
     const scope = owner.value,
       id = draftId.value,
       snapshot = parseProject(project.value);
@@ -169,7 +171,8 @@ export function useWorkshop() {
         return;
       await saveWorkspace(workspace);
       if (scope === owner.value && boundary === epoch && id === draftId.value) {
-        saveState.value = "已自动保存到当前浏览器";
+        if (editRevision === workspaceRevision)
+          saveState.value = "已自动保存到当前浏览器";
         await refreshDrafts();
       }
     } catch (error) {
@@ -233,6 +236,7 @@ export function useWorkshop() {
   async function persistWorkspace() {
     if (!ready.value || preparing.value) return;
     const scope = epoch,
+      editRevision = workspaceRevision,
       workspace = snapshotWorkspace();
     try {
       await saveWorkspace(workspace);
@@ -257,7 +261,11 @@ export function useWorkshop() {
           cloudClientId: workspace.cloudClientId,
         });
       }
-      if (scope === epoch && !running.value)
+      if (
+        scope === epoch &&
+        editRevision === workspaceRevision &&
+        !running.value
+      )
         saveState.value = "工作区已自动保存到当前浏览器";
     } catch (error) {
       if (scope === epoch) saveState.value = message(error);
@@ -276,6 +284,7 @@ export function useWorkshop() {
     project,
     cloud,
     cloudClientId,
+    draftId,
     changed,
     ready,
     snapshot: snapshotWorkspace,
@@ -353,12 +362,17 @@ export function useWorkshop() {
       cloud,
     ],
     () => {
+      workspaceRevision++;
       clearTimeout(workspaceTimer);
-      if (ready.value)
+      if (ready.value) {
+        if (!running.value && !preparing.value)
+          saveState.value = "正在保存当前工作区…";
         workspaceTimer = setTimeout(() => {
           void persistWorkspace();
         }, 500);
+      }
     },
+    { flush: "sync" },
   );
   async function confirmReplace(): Promise<boolean> {
     if (!project.value) return true;
@@ -657,13 +671,13 @@ export function useWorkshop() {
     if (!(await confirmReplace()) || scope !== epoch) return;
     privateLoading.value = true;
     try {
-      const response = await http.get<Blob>(
-        `/bead-patterns/sources/private/${item.id}`,
-        { responseType: "blob" },
-      );
+      const response = await cloudRequest<Blob>({
+        url: `/bead-patterns/sources/private/${item.id}`,
+        responseType: "blob",
+      });
       if (scope !== epoch) return;
       privateVisible.value = false;
-      await loadImage(response.data, item.name);
+      await loadImage(response, item.name);
     } catch (error) {
       if (scope === epoch) {
         const data = (error as { response?: { data?: unknown } }).response

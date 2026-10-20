@@ -1,5 +1,5 @@
 /** 云端作品/迁移编排独立于转换引擎，所有异步回写核对账号和当前图纸。 */
-import { computed, ref, shallowRef, watch } from "vue";
+import { computed, onScopeDispose, ref, shallowRef, watch } from "vue";
 import type { Ref, ShallowRef, ComputedRef } from "vue";
 import axios from "axios";
 import { ElMessage } from "element-plus";
@@ -14,7 +14,15 @@ import {
   deleteCloud,
   cloudLink,
 } from "./cloudApi.ts";
-import { listDrafts, getMigration, saveMigration } from "./storage.ts";
+import {
+  listDrafts,
+  getMigration,
+  saveMigration,
+  getPendingCreate,
+  savePendingCreate,
+  deletePendingCreate,
+  loadWorkspace,
+} from "./storage.ts";
 import {
   lease,
   assertLease,
@@ -30,6 +38,7 @@ import type {
   CloudItem,
   CloudLink,
   BeadDraft,
+  PendingCloudCreate,
 } from "./types.ts";
 
 interface Port {
@@ -37,6 +46,7 @@ interface Port {
   project: ShallowRef<BeadWorkspace["project"]>;
   cloud: ShallowRef<CloudLink | undefined>;
   cloudClientId: Ref<string>;
+  draftId: Ref<string>;
   changed: ComputedRef<boolean>;
   ready: Ref<boolean>;
   deferPrompt: ComputedRef<boolean>;
@@ -66,12 +76,21 @@ export function useCloudWorkshop(port: Port) {
     migrationTotal = ref(0),
     migrationSummary = ref("");
   const cloudConflict = ref(false);
+  const pendingCreate = shallowRef<PendingCloudCreate>(),
+    pendingLoading = ref(false);
+  const migrationIssues = ref<Record<string, "missing" | "conflict">>({});
+  let disposed = false,
+    pendingSerial = 0;
+  onScopeDispose(() => {
+    disposed = true;
+    pendingSerial++;
+  });
   const signedIn = computed(() => port.owner.value !== "guest");
   let loginContinuation = false,
     loadSerial = 0;
   let pendingPrompt = "";
   const previewUrl = (row: CloudItem) =>
-    `${import.meta.env.VITE_API_BASE ?? "/api/v1"}/bead-patterns/${row.id}/thumbnail?revision=${row.revision}`;
+    `${import.meta.env.VITE_API_BASE ?? "/api/v1"}/bead-patterns/${row.id}/thumbnail?revision=${row.revision}&owner=${encodeURIComponent(port.owner.value.slice(5))}`;
   function showError(error: unknown) {
     if (error instanceof DOMException && error.name === "AbortError") return;
     cloudConflict.value =
@@ -147,7 +166,13 @@ export function useCloudWorkshop(port: Port) {
     }
   }
   async function saveCloud(asNew = false) {
-    if (cloudBusy.value || !port.project.value || port.changed.value) return;
+    if (
+      cloudBusy.value ||
+      pendingLoading.value ||
+      !port.project.value ||
+      (port.changed.value && !pendingCreate.value)
+    )
+      return;
     const before = port.snapshot();
     if (before.owner === "guest") {
       loginContinuation = true;
@@ -192,22 +217,50 @@ export function useCloudWorkshop(port: Port) {
         ...snapshot.project,
         name: snapshot.name.trim() || "我的拼豆图纸",
       });
-      // 另存的客户端标识在发请求前持久化；未知网络结果重试不会再创建一份。
-      if (asNew) {
-        port.cloud.value = undefined;
-        port.cloudClientId.value = crypto.randomUUID();
-        await port.persist();
+      // 未确认的创建优先重试冻结快照，不能因再次点击另存或调参而生成第二份。
+      let pending = await getPendingCreate(owner, snapshot.draftId);
+      assertLease(owner, token);
+      if (
+        disposed ||
+        owner !== port.owner.value ||
+        port.draftId.value !== snapshot.draftId
+      )
+        return;
+      if (!pending && (asNew || !snapshot.cloud)) {
+        pending = {
+          key: `${owner}/workshop/${snapshot.draftId}`,
+          owner,
+          draftId: snapshot.draftId,
+          scope: "workshop",
+          clientId: asNew
+            ? crypto.randomUUID()
+            : port.cloudClientId.value || snapshot.draftId,
+          asNew,
+          project,
+          source: snapshot.source,
+          thumbnail: thumbnail(
+            project.pattern,
+            getPalette(project.paletteId).colors,
+          ),
+        };
+        pending = await savePendingCreate(pending);
+        assertLease(owner, token);
+        if (disposed || port.draftId.value !== snapshot.draftId) return;
+        pendingCreate.value = pending;
       }
-      const link = asNew ? undefined : snapshot.cloud;
-      const clientId = port.cloudClientId.value || snapshot.draftId;
+      const link = pending ? undefined : snapshot.cloud;
       const result = await putCloud(
-        project,
-        snapshot.source,
-        thumbnail(project.pattern, getPalette(project.paletteId).colors),
-        clientId,
+        pending?.project ?? project,
+        pending ? pending.source : snapshot.source,
+        pending
+          ? pending.thumbnail
+          : thumbnail(project.pattern, getPalette(project.paletteId).colors),
+        pending?.clientId ?? port.cloudClientId.value ?? snapshot.draftId,
         link,
       );
       assertLease(owner, token);
+      // 已离开的工作台保留待确认任务，回来后可幂等确认；不回写覆盖新页面的工作区。
+      if (disposed) return;
       if (before.owner === "guest")
         await saveMigration({
           key: `${owner}/${before.draftId}`,
@@ -218,7 +271,25 @@ export function useCloudWorkshop(port: Port) {
         });
       if (port.snapshot().draftId === snapshot.draftId) {
         port.cloud.value = cloudLink(result);
+        port.cloudClientId.value = result.client_id;
         await port.persist();
+        if (pending) {
+          // persist 会保留画布并报告配额错误；必须核对实际落盘后才能移除重试凭据。
+          const saved = await loadWorkspace(owner);
+          assertLease(owner, token);
+          if (
+            saved?.draftId !== snapshot.draftId ||
+            saved.cloud?.id !== result.id ||
+            saved.cloud?.clientId !== result.client_id
+          )
+            throw new Error(
+              "云端已保存，但本地关联尚未确认；待确认任务仍保留，请重试确认。",
+            );
+          await deletePendingCreate(pending);
+          assertLease(owner, token);
+          if (pendingCreate.value?.key === pending.key)
+            pendingCreate.value = undefined;
+        }
       }
       cloudError.value = "";
       ElMessage.success("作品已保存到云端");
@@ -308,16 +379,23 @@ export function useCloudWorkshop(port: Port) {
       migrationCompleted.value = 0;
       migrationTotal.value = 0;
       migrationSummary.value = "";
+      migrationIssues.value = {};
       for (const draft of migrationRows.value) {
         const old = await getMigration(owner, draft.id);
         assertLease(owner, token);
-        migrationStatuses.value[draft.id] = old
-          ? "已关联当前账号，可选择更新"
-          : "待选择";
+        const pending = await getPendingCreate(owner, draft.id, "migration");
+        assertLease(owner, token);
+        migrationStatuses.value[draft.id] = pending
+          ? "有一次创建待确认，可重试当时版本"
+          : old
+            ? "已关联当前账号，可选择更新"
+            : "待选择";
       }
       if (automatic) {
         migrationRows.value = migrationRows.value.filter(
-          (draft) => migrationStatuses.value[draft.id] === "待选择",
+          (draft) =>
+            migrationStatuses.value[draft.id] === "待选择" ||
+            migrationStatuses.value[draft.id]?.includes("待确认"),
         );
       }
       if (automatic && port.deferPrompt.value) {
@@ -332,12 +410,36 @@ export function useCloudWorkshop(port: Port) {
   }
   async function migrate() {
     if (migrationBusy.value || !selectedMigrations.value.length) return;
-    const owner = port.owner.value,
-      token = lease(owner);
     // 固定本次勾选快照，重试只包含失败项，避免同步过程中选择变化影响批次。
     const selected = migrationRows.value.filter((draft) =>
       selectedMigrations.value.includes(draft.id),
     );
+    await runMigration(selected);
+  }
+  async function migrateAsNew(draft: BeadDraft) {
+    if (migrationBusy.value) return;
+    const owner = port.owner.value,
+      token = lease(owner);
+    try {
+      await ElMessageBox.confirm(
+        "将保留原云端记录的删除/修改状态，并把本地副本作为一份新作品同步。若已有待确认任务，将先重试同一次创建。",
+        `作为新作品同步“${draft.project.name}”？`,
+        { confirmButtonText: "作为新作品同步", cancelButtonText: "取消" },
+      );
+      assertLease(owner, token);
+      if (!disposed && owner === port.owner.value && !migrationBusy.value)
+        await runMigration([draft], new Set([draft.id]));
+    } catch (error) {
+      if (error instanceof Error) showError(error);
+    }
+  }
+  async function runMigration(
+    selected: BeadDraft[],
+    asNew = new Set<string>(),
+  ) {
+    const owner = port.owner.value,
+      token = lease(owner);
+    if (migrationBusy.value || owner === "guest") return;
     if (!selected.length) return;
     const failed: string[] = [];
     migrationCompleted.value = 0;
@@ -350,27 +452,75 @@ export function useCloudWorkshop(port: Port) {
         migrationStatuses.value[draft.id] = "正在同步…";
         try {
           const previous = await getMigration(owner, draft.id);
+          let pending = await getPendingCreate(owner, draft.id, "migration");
           assertLease(owner, token);
-          const fingerprint = JSON.stringify(draft.project);
-          if (previous && previous.fingerprint === fingerprint) {
-            migrationStatuses.value[draft.id] = "已同步，无需重复上传";
-            continue;
+          let link = previous?.cloud ?? draft.cloud;
+          delete migrationIssues.value[draft.id];
+          if (!pending && link && !asNew.has(draft.id)) {
+            let remote;
+            try {
+              remote = await getCloud(link.id);
+            } catch (error) {
+              if (axios.isAxiosError(error) && error.response?.status === 404) {
+                migrationIssues.value[draft.id] = "missing";
+                throw new Error(
+                  "云端作品已删除或不可访问；本地副本仍保留，可选择“作为新作品同步”。",
+                );
+              }
+              throw error;
+            }
+            assertLease(owner, token);
+            if (remote.revision !== link.revision) {
+              migrationIssues.value[draft.id] = "conflict";
+              throw new Error(
+                "云端作品已在其他设备修改，请先查看云端版本，或明确选择“作为新作品同步”。",
+              );
+            }
+            if (
+              previous &&
+              previous.fingerprint === JSON.stringify(draft.project)
+            ) {
+              migrationStatuses.value[draft.id] =
+                "已核对云端作品，无需重复上传";
+              continue;
+            }
           }
+          if (!pending && (!link || asNew.has(draft.id))) {
+            pending = {
+              key: `${owner}/migration/${draft.id}`,
+              owner,
+              draftId: draft.id,
+              scope: "migration",
+              clientId: asNew.has(draft.id)
+                ? crypto.randomUUID()
+                : (draft.cloudClientId ?? draft.id),
+              asNew: asNew.has(draft.id),
+              project: parseProject(draft.project),
+              source: draft.source,
+              thumbnail: draft.thumbnail,
+            };
+            pending = await savePendingCreate(pending);
+            assertLease(owner, token);
+          }
+          if (pending) link = undefined;
+          const submitted = pending?.project ?? draft.project;
           const result = await putCloud(
-            draft.project,
-            draft.source,
-            draft.thumbnail,
-            draft.id,
-            previous?.cloud ?? draft.cloud,
+            submitted,
+            pending ? pending.source : draft.source,
+            pending ? pending.thumbnail : draft.thumbnail,
+            pending?.clientId ?? draft.cloudClientId ?? draft.id,
+            link,
           );
           assertLease(owner, token);
           await saveMigration({
             key: `${owner}/${draft.id}`,
             owner,
             sourceId: draft.id,
-            fingerprint,
+            fingerprint: JSON.stringify(submitted),
             cloud: cloudLink(result),
           });
+          if (pending) await deletePendingCreate(pending);
+          assertLease(owner, token);
           migrationStatuses.value[draft.id] = "同步成功，本地副本已保留";
         } catch (error) {
           assertLease(owner, token);
@@ -409,6 +559,27 @@ export function useCloudWorkshop(port: Port) {
     }
   }
   watch(
+    [port.owner, port.draftId],
+    async ([owner, draftId]) => {
+      const serial = ++pendingSerial,
+        token = lease(owner);
+      pendingCreate.value = undefined;
+      pendingLoading.value = owner !== "guest";
+      if (owner === "guest") return;
+      try {
+        const pending = await getPendingCreate(owner, draftId);
+        assertLease(owner, token);
+        if (!disposed && serial === pendingSerial)
+          pendingCreate.value = pending;
+      } catch (error) {
+        if (!disposed && serial === pendingSerial) showError(error);
+      } finally {
+        if (!disposed && serial === pendingSerial) pendingLoading.value = false;
+      }
+    },
+    { immediate: true, flush: "sync" },
+  );
+  watch(
     port.owner,
     async (owner) => {
       loadSerial++;
@@ -422,6 +593,7 @@ export function useCloudWorkshop(port: Port) {
       migrationVisible.value = false;
       migrationRows.value = [];
       migrationStatuses.value = {};
+      migrationIssues.value = {};
       migrationCompleted.value = 0;
       migrationTotal.value = 0;
       migrationSummary.value = "";
@@ -461,6 +633,9 @@ export function useCloudWorkshop(port: Port) {
     migrationCompleted,
     migrationTotal,
     migrationSummary,
+    migrationIssues,
+    pendingCreate,
+    pendingLoading,
     signedIn,
     previewUrl,
     refreshCloud,
@@ -472,6 +647,7 @@ export function useCloudWorkshop(port: Port) {
     retentionChanged,
     openMigration,
     migrate,
+    migrateAsNew,
     reloadCloud: () =>
       port.cloud.value ? openCloud({ id: port.cloud.value.id }) : openLibrary(),
   };

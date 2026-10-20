@@ -21,7 +21,7 @@ await page.addInitScript(() => {
   window.__beadLongTasks = []
   if (PerformanceObserver.supportedEntryTypes.includes('longtask')) new PerformanceObserver((list) => window.__beadLongTasks.push(...list.getEntries().map((entry) => entry.duration))).observe({ type: 'longtask' })
 })
-async function open() { await page.goto('http://127.0.0.1:5173/pixel-beads'); await page.locator('.bead-workshop').waitFor() }
+async function open() { await page.goto((process.env.BEAD_QA_FRONTEND_URL ?? 'http://127.0.0.1:5173') + '/pixel-beads'); await page.locator('.bead-workshop').waitFor() }
 async function generate(label) {
   console.log('GENERATE', label)
   await page.evaluate(() => { window.__beadLongTasks = [] })

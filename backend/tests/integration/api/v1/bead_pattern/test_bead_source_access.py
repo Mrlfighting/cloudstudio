@@ -45,6 +45,7 @@ async def test_private_source_boundaries(auth_client, db_session, test_user, tes
     service = AsyncMock()
     service.read.return_value = (b"verified image", "image/png")
     app.dependency_overrides[get_source_service] = lambda: service
+    auth_client.headers["X-Bead-Owner"] = str(test_user["id"])
     try:
         response = await auth_client.get(f"/api/v1/bead-patterns/sources/private/{picture.id}")
         assert response.status_code == expected, response.text

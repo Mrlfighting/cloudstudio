@@ -18,6 +18,11 @@ import type {
   CloudLink,
 } from "./types.ts";
 import { projectJson } from "./project.ts";
+import {
+  assertSharedBeadOwner,
+  beadSessionStamp,
+  notifyBeadSessionChanged,
+} from "./authSync.ts";
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_BASE ?? "/api/v1",
   withCredentials: true,
@@ -31,6 +36,8 @@ export async function cloudRequest<T>(config: AxiosRequestConfig): Promise<T> {
   transitionOwner(owner);
   const token = lease(owner);
   if (owner === "guest") throw new Error("请登录后再操作云端作品");
+  const stamp = beadSessionStamp();
+  assertSharedBeadOwner(owner, stamp);
   const controller = new AbortController(),
     release = trackRequest(owner, controller);
   const check = () => {
@@ -42,6 +49,7 @@ export async function cloudRequest<T>(config: AxiosRequestConfig): Promise<T> {
     assertLease(owner, token);
     if (beadOwner.value !== owner)
       throw new DOMException("账号已切换", "AbortError");
+    assertSharedBeadOwner(owner, stamp);
   };
   async function send(retry = false): Promise<T> {
     check();
@@ -52,6 +60,7 @@ export async function cloudRequest<T>(config: AxiosRequestConfig): Promise<T> {
         headers: {
           ...config.headers,
           "X-CSRF-Token": getCookie("csrf_token") ?? "",
+          "X-Bead-Owner": owner.slice(5),
         },
       });
       check();
@@ -59,6 +68,12 @@ export async function cloudRequest<T>(config: AxiosRequestConfig): Promise<T> {
     } catch (error) {
       check();
       if (axios.isAxiosError(error)) {
+        if (error.response?.headers["x-bead-session-changed"]) {
+          beadStorageNotice.value =
+            "登录账号已在其他页面变更，本次操作已取消。";
+          notifyBeadSessionChanged();
+          throw new DOMException("账号已切换，本次操作已取消", "AbortError");
+        }
         if (error.response?.status === 401) {
           beadStorageNotice.value = "登录已失效，请重新登录后再次保存。";
           auth.reset();

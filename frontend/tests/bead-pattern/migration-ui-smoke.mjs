@@ -28,6 +28,16 @@ try {
       url = new URL(req.url());
     if (url.pathname.endsWith("/auth/check-auth"))
       return route.fulfill({ json: { authenticated: false } });
+    if (
+      url.pathname.startsWith("/api/v1/bead-patterns/") &&
+      req.method() === "GET" &&
+      url.pathname !== "/api/v1/bead-patterns/"
+    ) {
+      const row = rows.find((row) => row.id === url.pathname.split("/").at(-1));
+      return route.fulfill(
+        row ? { json: row } : { status: 404, json: { detail: "作品不存在" } },
+      );
+    }
     if (url.pathname === "/api/v1/bead-patterns/" && req.method() === "POST") {
       const parsed = new Request(req.url(), {
         method: "POST",

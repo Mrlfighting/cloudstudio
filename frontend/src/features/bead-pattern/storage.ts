@@ -1,8 +1,20 @@
-/** 独立 IndexedDB v2：兼容旧草稿，增加工作区与按目标账号隔离的迁移关系。 */
-import type { BeadDraft, BeadWorkspace, MigrationRecord } from "./types.ts";
+/** 独立 IndexedDB v3：兼容旧草稿/工作区，持久保存按账号隔离的待确认云端创建。 */
+import type {
+  BeadDraft,
+  BeadWorkspace,
+  MigrationRecord,
+  PendingCloudCreate,
+} from "./types.ts";
 import { parseProject, validParams } from "./project.ts";
 import { getPalette } from "./palettes.ts";
 import { assertLease, lease, waitForOwner } from "./session.ts";
+import { assertSharedBeadOwner } from "./authSync.ts";
+
+/** 跨标签页退出后，尚未收到通知的旧标签页也不能把私有缓存重新写回来。 */
+function guardOwner(owner: string, token: number): void {
+  assertLease(owner, token);
+  if (owner !== "guest") assertSharedBeadOwner(owner);
+}
 
 let opening: Promise<IDBDatabase> | null = null;
 function database(): Promise<IDBDatabase> {
@@ -12,7 +24,7 @@ function database(): Promise<IDBDatabase> {
         reject(new Error("浏览器不支持本地草稿，请导出项目备份"));
         return;
       }
-      const request = indexedDB.open("cloudatelier-bead-patterns", 2);
+      const request = indexedDB.open("cloudatelier-bead-patterns", 3);
       request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains("drafts"))
@@ -42,6 +54,10 @@ function database(): Promise<IDBDatabase> {
             "owner",
             "owner",
           );
+        if (!db.objectStoreNames.contains("cloudOperations"))
+          db.createObjectStore("cloudOperations", {
+            keyPath: "key",
+          }).createIndex("owner", "owner");
       };
       request.onsuccess = () => {
         const db = request.result;
@@ -117,14 +133,14 @@ export async function saveDraft(draft: BeadDraft): Promise<void> {
         project,
         createdAt: draft.createdAt ?? project.updatedAt,
       }),
-    () => assertLease(draft.owner, token),
+    () => guardOwner(draft.owner, token),
   );
 }
 export async function deleteDraft(id: string, owner: string): Promise<void> {
   const token = lease(owner);
   await waitForOwner(owner);
   const db = await database();
-  assertLease(owner, token);
+  guardOwner(owner, token);
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction("drafts", "readwrite"),
       store = tx.objectStore("drafts"),
@@ -143,7 +159,7 @@ export async function saveWorkspace(workspace: BeadWorkspace): Promise<void> {
     "workspaces",
     "readwrite",
     (s) => s.put(workspace),
-    () => assertLease(workspace.owner, token),
+    () => guardOwner(workspace.owner, token),
   );
 }
 export async function loadWorkspace(
@@ -167,7 +183,7 @@ export async function saveMigration(record: MigrationRecord): Promise<void> {
     "migrations",
     "readwrite",
     (s) => s.put(record),
-    () => assertLease(record.owner, token),
+    () => guardOwner(record.owner, token),
   );
 }
 export async function getMigration(
@@ -183,11 +199,11 @@ export async function clearOwner(owner: string): Promise<void> {
   const db = await database();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(
-      ["drafts", "workspaces", "migrations"],
+      ["drafts", "workspaces", "migrations", "cloudOperations"],
       "readwrite",
     );
     tx.objectStore("workspaces").delete(owner);
-    for (const name of ["drafts", "migrations"]) {
+    for (const name of ["drafts", "migrations", "cloudOperations"]) {
       const req = tx
         .objectStore(name)
         .index("owner")
@@ -203,5 +219,65 @@ export async function clearOwner(owner: string): Promise<void> {
     tx.oncomplete = () => resolve();
     tx.onerror = tx.onabort = () =>
       reject(new Error("账号本地数据清理失败，请重试"));
+  });
+}
+
+/** 待确认创建与工作区分开保存，旧任务不能覆盖新工作区，退出清理时一同删除。 */
+export async function getPendingCreate(
+  owner: string,
+  draftId: string,
+  scope: PendingCloudCreate["scope"] = "workshop",
+): Promise<PendingCloudCreate | undefined> {
+  await waitForOwner(owner);
+  return transaction("cloudOperations", "readonly", (store) =>
+    store.get(`${owner}/${scope}/${draftId}`),
+  );
+}
+export async function savePendingCreate(
+  value: PendingCloudCreate,
+): Promise<PendingCloudCreate> {
+  const token = lease(value.owner);
+  await waitForOwner(value.owner);
+  const frozen = { ...value, project: parseProject(value.project) };
+  const db = await database();
+  guardOwner(value.owner, token);
+  // 同账号两个标签页可能同时读到“没有待确认任务”；同一读写事务只保留首个快照。
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("cloudOperations", "readwrite"),
+      store = tx.objectStore("cloudOperations"),
+      request = store.get(value.key);
+    let result: PendingCloudCreate;
+    request.onsuccess = () => {
+      result = request.result ?? frozen;
+      if (!request.result) {
+        try {
+          store.put(frozen);
+        } catch {
+          tx.abort();
+        }
+      }
+    };
+    tx.oncomplete = () => resolve(result);
+    tx.onerror = tx.onabort = () =>
+      reject(new Error("待确认任务保存失败或空间不足，请下载项目备份后重试"));
+  });
+}
+export async function deletePendingCreate(
+  value: PendingCloudCreate,
+): Promise<void> {
+  const token = lease(value.owner);
+  await waitForOwner(value.owner);
+  const db = await database();
+  guardOwner(value.owner, token);
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction("cloudOperations", "readwrite"),
+      store = tx.objectStore("cloudOperations");
+    const request = store.get(value.key);
+    request.onsuccess = () => {
+      if (request.result?.clientId === value.clientId) store.delete(value.key);
+    };
+    tx.oncomplete = () => resolve();
+    tx.onerror = tx.onabort = () =>
+      reject(new Error("云端已保存，待确认任务清理失败，请重试确认"));
   });
 }

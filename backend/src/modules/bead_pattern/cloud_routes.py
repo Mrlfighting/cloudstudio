@@ -8,8 +8,9 @@ from uuid import UUID
 from fastapi import APIRouter, File, Form, HTTPException, Query, Response, UploadFile
 from sqlalchemy import select
 
-from ...infrastructure.dependencies import AsyncSessionDep, CurrentUserDep
+from ...infrastructure.dependencies import AsyncSessionDep
 from . import persistence as service
+from .dependencies import BeadUserDep, ThumbnailUserDep
 from .models import BeadPattern as B
 from .schemas import RenameRequest, parse_project
 
@@ -19,7 +20,7 @@ router = APIRouter()
 @router.post("/")
 async def create_pattern(
     db: AsyncSessionDep,
-    current_user: CurrentUserDep,
+    current_user: BeadUserDep,
     project: Annotated[str, Form()],
     client_id: Annotated[UUID, Form()],
     source: Annotated[UploadFile | None, File()] = None,
@@ -34,7 +35,7 @@ async def create_pattern(
 @router.get("/")
 async def list_patterns(
     db: AsyncSessionDep,
-    current_user: CurrentUserDep,
+    current_user: BeadUserDep,
     page: int = Query(1, ge=1),
     items_per_page: int = Query(20, ge=1, le=100),
     keyword: str = Query("", max_length=128),
@@ -44,7 +45,7 @@ async def list_patterns(
 
 
 @router.get("/{pattern_id}")
-async def get_pattern(pattern_id: int, db: AsyncSessionDep, current_user: CurrentUserDep) -> dict:
+async def get_pattern(pattern_id: int, db: AsyncSessionDep, current_user: BeadUserDep) -> dict:
     """取得版本化图纸，图片通过独立鉴权响应读取。"""
     return await service.detail(db, current_user["id"], pattern_id)
 
@@ -53,7 +54,7 @@ async def get_pattern(pattern_id: int, db: AsyncSessionDep, current_user: Curren
 async def replace_pattern(
     pattern_id: int,
     db: AsyncSessionDep,
-    current_user: CurrentUserDep,
+    current_user: BeadUserDep,
     project: Annotated[str, Form()],
     revision: Annotated[int, Form(ge=1)],
     source: Annotated[UploadFile | None, File()] = None,
@@ -81,7 +82,7 @@ async def rename_pattern(
     pattern_id: int,
     body: RenameRequest,
     db: AsyncSessionDep,
-    current_user: CurrentUserDep,
+    current_user: BeadUserDep,
 ) -> dict:
     """只更改名称，不加载图片；使旧创建请求无法把名称改回去。"""
     if not body.name.strip():
@@ -105,7 +106,7 @@ async def rename_pattern(
 async def delete_pattern(
     pattern_id: int,
     db: AsyncSessionDep,
-    current_user: CurrentUserDep,
+    current_user: BeadUserDep,
     revision: int = Query(..., ge=1),
 ) -> dict:
     """软删除不销毁文件，不提供回收站或恢复 API。"""
@@ -140,12 +141,12 @@ async def image_response(pattern_id: int, db, user: int, kind: str) -> Response:
 
 
 @router.get("/{pattern_id}/source")
-async def get_source(pattern_id: int, db: AsyncSessionDep, current_user: CurrentUserDep) -> Response:
+async def get_source(pattern_id: int, db: AsyncSessionDep, current_user: BeadUserDep) -> Response:
     """只读本人工作源。"""
     return await image_response(pattern_id, db, current_user["id"], "source")
 
 
 @router.get("/{pattern_id}/thumbnail")
-async def get_thumbnail(pattern_id: int, db: AsyncSessionDep, current_user: CurrentUserDep) -> Response:
+async def get_thumbnail(pattern_id: int, db: AsyncSessionDep, current_user: ThumbnailUserDep) -> Response:
     """缩略图也需登录，不产生永久公开地址。"""
     return await image_response(pattern_id, db, current_user["id"], "thumbnail")
