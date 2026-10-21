@@ -3,6 +3,7 @@ import axios from "axios";
 import type { AxiosRequestConfig } from "axios";
 import { getCookie, setCookie } from "@/utils/cookies";
 import { useAuthStore } from "@/stores/auth";
+import { useEmailVerificationStore } from "@/features/email-verification/store";
 import {
   beadOwner,
   lease,
@@ -30,6 +31,11 @@ const client = axios.create({
 });
 export async function cloudRequest<T>(config: AxiosRequestConfig): Promise<T> {
   const auth = useAuthStore();
+  const account = auth.user?.id;
+  const email = useEmailVerificationStore();
+  // 仅扩展云端权限前置检查，原有账号代次、幂等与CSRF处理继续复用。
+  await email.assertPrivateAccess();
+  if (auth.user?.id !== account) throw new DOMException("账号已切换", "AbortError");
   const currentOwner = () => (auth.user ? `user:${auth.user.id}` : "guest");
   // 登录 Store 是唯一身份来源；首次加载/热更新时不能依赖监听组件已同步完成。
   const owner = currentOwner();
@@ -41,6 +47,7 @@ export async function cloudRequest<T>(config: AxiosRequestConfig): Promise<T> {
   const controller = new AbortController(),
     release = trackRequest(owner, controller);
   const check = () => {
+    if (!email.canUsePrivate) throw new DOMException("邮箱验证状态已变更", "AbortError");
     // 响应与 CSRF 重试同样检查真实登录态，避免辅助状态滞后时泄露旧账号结果。
     if (currentOwner() !== owner) {
       transitionOwner(currentOwner());

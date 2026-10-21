@@ -2,9 +2,11 @@
 // 根组件：认证弹窗独立于路由渲染，确保首次访问受保护深链时也可展示。
 import AuthDialog from '@/components/auth/AuthDialog.vue'
 import BeadPersistenceBridge from '@/features/bead-pattern/BeadPersistenceBridge.vue'
+import EmailVerificationBridge from '@/features/email-verification/EmailVerificationBridge.vue'
 </script>
 
 <template>
+  <EmailVerificationBridge />
   <BeadPersistenceBridge />
   <router-view />
   <AuthDialog />

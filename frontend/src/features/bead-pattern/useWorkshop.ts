@@ -12,6 +12,7 @@ import { ElMessage } from "element-plus";
 import { beadMessageBox as ElMessageBox, beadDialogDepth } from "./dialogs.ts";
 import { useAuthStore } from "@/stores/auth";
 import { useAuthGateStore } from "@/stores/authGate";
+import { useEmailVerificationStore } from "@/features/email-verification/store";
 import { spaceApi } from "@/api/space";
 import { cloudRequest } from "./cloudApi.ts";
 import type { PictureListItemRead } from "@/types/picture";
@@ -40,6 +41,7 @@ import type {
 export function useWorkshop() {
   const auth = useAuthStore(),
     gate = useAuthGateStore();
+  const emailVerification = useEmailVerificationStore();
   const owner = computed(() => (auth.user ? `user:${auth.user.id}` : "guest"));
   const params = reactive({ ...DEFAULT_PARAMS }),
     paletteId = ref(PALETTES[0]!.id),
@@ -275,6 +277,8 @@ export function useWorkshop() {
     deferPrompt: computed(
       () =>
         gate.visible ||
+        emailVerification.visible ||
+        (auth.isAuthenticated && !emailVerification.canUsePrivate) ||
         beadDialogDepth.value > 0 ||
         privateVisible.value ||
         preparing.value ||

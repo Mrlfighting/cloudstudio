@@ -5,6 +5,7 @@ import axios from "axios";
 import { ElMessage } from "element-plus";
 import { beadMessageBox as ElMessageBox } from "./dialogs.ts";
 import { useAuthGateStore } from "@/stores/authGate";
+import { useEmailVerificationStore } from "@/features/email-verification/store";
 import {
   listCloud,
   getCloud,
@@ -58,6 +59,7 @@ interface Port {
   closeLocalLibrary(): void;
 }
 export function useCloudWorkshop(port: Port) {
+  const emailVerification = useEmailVerificationStore();
   const cloudVisible = ref(false),
     cloudBusy = ref(false),
     cloudLoading = ref(false),
@@ -86,6 +88,7 @@ export function useCloudWorkshop(port: Port) {
     pendingSerial++;
   });
   const signedIn = computed(() => port.owner.value !== "guest");
+  const eligible = computed(() => signedIn.value && emailVerification.canUsePrivate);
   let loginContinuation = false,
     loadSerial = 0;
   let pendingPrompt = "";
@@ -100,7 +103,7 @@ export function useCloudWorkshop(port: Port) {
     ElMessage.error(cloudError.value);
   }
   async function refreshCloud() {
-    if (!signedIn.value) return;
+    if (!eligible.value) return;
     const owner = port.owner.value,
       token = lease(owner),
       serial = ++loadSerial;
@@ -121,7 +124,6 @@ export function useCloudWorkshop(port: Port) {
   }
   async function openLibrary() {
     if (
-      !signedIn.value &&
       !(await useAuthGateStore().requireAuthentication({
         reason: "登录后访问自己的云端拼豆作品",
       }))
@@ -204,6 +206,9 @@ export function useCloudWorkshop(port: Port) {
       } finally {
         loginContinuation = false;
       }
+    } else {
+      if (!(await useAuthGateStore().requireAuthentication({ reason: "验证邮箱后保存云端拼豆作品" }))) return;
+      if (port.owner.value !== before.owner) return;
     }
     const owner = port.owner.value,
       token = lease(owner),
@@ -362,7 +367,8 @@ export function useCloudWorkshop(port: Port) {
   }
   async function openMigration(automatic = false) {
     if (automatic && loginContinuation) return;
-    if (!signedIn.value) return;
+    if (!automatic && !(await useAuthGateStore().requireAuthentication({ reason: "验证邮箱后同步本地作品" }))) return;
+    if (!eligible.value) return;
     if (automatic && port.deferPrompt.value) {
       pendingPrompt = port.owner.value;
       return;
@@ -439,7 +445,7 @@ export function useCloudWorkshop(port: Port) {
   ) {
     const owner = port.owner.value,
       token = lease(owner);
-    if (migrationBusy.value || owner === "guest") return;
+    if (migrationBusy.value || owner === "guest" || !eligible.value) return;
     if (!selected.length) return;
     const failed: string[] = [];
     migrationCompleted.value = 0;
@@ -600,13 +606,24 @@ export function useCloudWorkshop(port: Port) {
       migrationBusy.value = false;
       pendingPrompt = "";
       retainLocal.value = keepLocal(owner);
-      if (owner !== "guest") {
-        void refreshCloud();
-        void openMigration(true);
-      }
     },
     { immediate: true, flush: "sync" },
   );
+  // 验证完成后恢复云端入口；暂未验证时不加载数据或弹迁移提示。
+  watch(eligible, (allowed) => {
+    if (allowed) {
+      void refreshCloud();
+      void openMigration(true);
+    } else {
+      loadSerial++;
+      cloudRows.value = [];
+      cloudTotal.value = 0;
+      cloudVisible.value = false;
+      cloudLoading.value = false;
+      migrationVisible.value = false;
+      pendingPrompt = "";
+    }
+  }, { immediate: true, flush: "sync" });
   // 登录原操作（例如私有选图）优先完成，迁移提示不叠在认证/选图弹窗上。
   watch(port.deferPrompt, (deferred) => {
     if (!deferred && pendingPrompt === port.owner.value) {
