@@ -4,6 +4,7 @@ from ....infrastructure.auth.routes import router as auth_router
 from ....modules.analytics.routes import router as analytics_router
 from ....modules.api_keys.routes import router as api_keys_router
 from ....modules.bead_pattern.routes import router as bead_pattern_router
+from ....modules.email_verification.routes import router as email_router
 from ....modules.pictures.routes import router as pictures_router
 from ....modules.rate_limit.routes import router as rate_limits_router
 from ....modules.space.collab import router as space_collab_router
@@ -13,6 +14,7 @@ from ....modules.user.routes import router as users_router
 from .cache import router as cache_router
 
 router = APIRouter(prefix="/v1")
+router.include_router(email_router, prefix="/email")
 router.include_router(bead_pattern_router, prefix="/bead-patterns")
 router.include_router(users_router, prefix="/users")
 router.include_router(tiers_router, prefix="/tiers")

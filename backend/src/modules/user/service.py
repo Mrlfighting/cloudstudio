@@ -91,12 +91,13 @@ class UserService:
             raise UserExistsError("Failed to create user")
         return created_user
 
-    async def register(self, data: UserRegister, db: AsyncSession) -> dict[str, Any]:
+    async def register(self, data: UserRegister, db: AsyncSession, *, commit: bool = True) -> dict[str, Any]:
         """用户公开注册：账号 + 密码 + 确认密码。
 
         Args:
             data: 注册数据（账号、密码、确认密码，可选昵称与简介）。
             db: 数据库会话。
+            commit: 默认保持原提交行为，邮箱适配层可统一提交账号和邮件任务。
 
         Returns:
             创建成功的用户数据字典（UserRead）。
@@ -117,7 +118,7 @@ class UserService:
             user_profile=data.user_profile,
         )
 
-        created_user = await crud_users.create(db=db, object=user_internal, schema_to_select=UserRead)
+        created_user = await crud_users.create(db=db, object=user_internal, schema_to_select=UserRead, commit=commit)
         if not created_user:
             raise UserExistsError("创建用户失败")
         return created_user

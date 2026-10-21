@@ -1,0 +1,53 @@
+# 生产Compose增量：与包含api/migrate/postgres/redis/rabbitmq的现有配置合并。
+# 相对路径以第一个Compose文件所在的生产部署目录为准。
+# 仅在完成.env占位替换与数据库迁移后，显式启用email profile。
+x-email-runtime: &email-runtime
+  build:
+    context: .
+    dockerfile: backend/Dockerfile
+    target: prod
+  env_file:
+    - .env
+  working_dir: /app
+  environment:
+    POSTGRES_SERVER: postgres
+    CACHE_REDIS_HOST: redis
+    RATE_LIMITER_REDIS_HOST: redis
+    TASKIQ_REDIS_HOST: redis
+    TASKIQ_RABBITMQ_HOST: rabbitmq
+    COLLAB_RABBITMQ_HOST: rabbitmq
+    PYTHONIOENCODING: utf-8
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+  profiles:
+    - email
+  init: true
+  stop_grace_period: 45s
+  restart: unless-stopped
+
+services:
+  email-dispatcher:
+    <<: *email-runtime
+    command: ["python", "-m", "src.modules.email_verification.dispatcher"]
+
+  email-worker:
+    <<: *email-runtime
+    command:
+      - python
+      - -m
+      - taskiq
+      - worker
+      - src.modules.email_verification.worker:broker
+      - --workers
+      - "1"
+      - --max-async-tasks
+      - "2"
+      - --ack-type
+      - when_executed

@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block content %}
+<h1 style="margin:0 0 16px;font-size:26px">欢迎加入云上工坊！</h1>
+<p>灵感值得被看见，也值得被好好收藏。云上工坊是一个智能云图库平台，让图片的发现、管理与创作连接在一起。</p>
+<p>你可以探索公共图库，整理私有空间，与团队协作，还能使用 AI 图片工具和拼豆图纸生成，创造属于自己的作品。</p>
+<ul style="padding-left:22px;line-height:2.1">
+<li>公共探索：浏览、搜索与分类筛选，发现新的灵感。</li>
+<li>空间协作：管理私人素材，与团队成员共同创作。</li>
+<li>图片工具：AI 扩图、以图搜图与颜色搜图。</li>
+<li>图库分析：通过可视化了解你的素材与空间。</li>
+<li>拼豆工坊：把图片转为图纸，导出备料清单。</li>
+</ul>
+<p style="margin-top:24px"><a href="{{ base_url }}/pictures" style="display:inline-block;padding:11px 22px;border-radius:10px;background:#507eb0;color:#fff;text-decoration:none">从探索页开始</a></p>
+<p><a href="{{ base_url }}/pixel-beads" style="color:#6a7fa6">走进拼豆工坊 →</a></p>
+<p style="font-size:13px;color:#7c879a">验证邮箱的验证码将通过另一封邮件送达；请登录后完成验证。我们不会在邮件中索取你的账号密码。</p>
+{% endblock %}

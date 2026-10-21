@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% block content %}
+<h1 style="margin:0 0 14px;font-size:25px">确认解绑邮箱</h1>
+<p>你的云上工坊账号正在申请解绑当前邮箱。确认是本人操作后，请在已登录的设置页输入：</p>
+<p style="margin:24px 0;padding:18px;background:#fcf1f4;border-radius:12px;text-align:center;font-size:34px;font-weight:bold;letter-spacing:10px;color:#af6684">{{ code }}</p>
+<p>验证码有效至 {{ expires_at }}（UTC），仅能使用一次。验证成功后，这个邮箱将不再绑定到该账号。</p>
+<p>如果你没有申请解绑，请忽略此邮件，当前绑定不会因此改变。</p>
+{% endblock %}

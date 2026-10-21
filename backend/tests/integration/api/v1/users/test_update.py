@@ -2,7 +2,10 @@ import logging
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.modules.user.models import User
 
 from .test_create import generate_unique_user_data
 from .test_register import generate_register_data
@@ -22,7 +25,8 @@ async def test_update_user_profile_success(
     username = test_user["username"]
     update_data = {
         "name": "Updated Name",
-        "email": "updated.email@example.com",
+        # 兼容旧表单原样提交邮箱，实际换绑必须走验证码流程。
+        "email": test_user["email"],
         "profile_image_url": "https://example.com/new-image.jpg",
     }
 
@@ -40,7 +44,9 @@ async def test_update_user_profile_success(
     assert get_response.status_code == 200
     user_data = get_response.json()
     assert user_data["name"] == update_data["name"]
-    assert user_data["email"] == update_data["email"]
+    # auth_client固定覆盖登录资料，正式邮箱从临时数据库读取，公开响应不应包含邮箱。
+    assert "email" not in user_data
+    assert await db_session.scalar(select(User.email).where(User.id == test_user["id"])) == update_data["email"]
 
 
 async def test_update_user_profile_invalid_email(
@@ -108,7 +114,8 @@ async def test_update_user_profile_duplicate_email(
     logger.info(f"Testing duplicate email update for user: {username}")
     response = await superuser_auth_client.patch(f"/api/v1/users/{username}", json=update_data)
 
-    assert response.status_code == 422
+    # 资料接口统一拒绝邮箱变更，管理员也不能在这里绕过验证码。
+    assert response.status_code == 409
     data = response.json()
     assert "detail" in data
 
@@ -152,7 +159,8 @@ async def test_update_user_tier_superuser(
     assert "message" in data
     assert data["message"] == "User tier updated successfully"
 
-    get_response = await superuser_auth_client.get(f"/api/v1/users/{username}")
+    # 套餐属于管理员受控资料，不再通过公开名片读取。
+    get_response = await superuser_auth_client.get(f"/api/v1/users/active-and-inactive/{username}")
     assert get_response.status_code == 200
     user_data = get_response.json()
     assert user_data["tier_id"] == second_test_tier["id"]

@@ -1,6 +1,6 @@
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastcrud import PaginatedListResponse, compute_offset, paginated_response
 
 from ...infrastructure.auth.http_exceptions import HTTPException
@@ -10,18 +10,22 @@ from ...infrastructure.dependencies import (
     CurrentUserDep,
 )
 from ..common.utils.error_handler import handle_exception
+from ..email_verification import service as email_service
+from ..email_verification.dependencies import protect_profile
+from ..email_verification.rate_limit import MailLimiter, get_mail_limiter
+from ..email_verification.routes import RegistrationInputRoute
+from ..email_verification.schemas import EmailRegistrationRequest, EmailRegistrationResponse, PublicUserRead
 from .dependencies import UserServiceDep
 from .schemas import (
     UserCreate,
     UserRead,
-    UserRegister,
     UserRoleUpdate,
     UserSearchItem,
     UserTierUpdate,
     UserUpdate,
 )
 
-router = APIRouter(tags=["Users"])
+router = APIRouter(tags=["Users"], route_class=RegistrationInputRoute)
 
 
 @router.post(
@@ -61,10 +65,11 @@ async def create_user(
 @router.post(
     "/register",
     status_code=201,
-    response_model=UserRead,
+    response_model=EmailRegistrationResponse,
     summary="用户注册",
     description="""
-           公开注册：账号 + 密码 + 确认密码（可选昵称、简介）。
+           公开注册：账号 + 密码 + 确认密码（可选昵称、简介、邮箱）。
+           填写邮箱后异步发送欢迎信和验证码；验证前不正式绑定，也不会自动登录。
 
            注册成功后需调用 POST /auth/login 登录获取会话 cookie。
            """,
@@ -75,13 +80,15 @@ async def create_user(
     response_description="注册成功的用户信息",
 )
 async def register(
-    user: UserRegister,
+    user: EmailRegistrationRequest,
     db: AsyncSessionDep,
     user_service: UserServiceDep,
+    request: Request,
+    limiter: MailLimiter = Depends(get_mail_limiter),
 ) -> dict[str, Any]:
     """用户公开注册（账号 + 密码 + 确认密码）。"""
     try:
-        return await user_service.register(user, db)
+        return await email_service.register(user, db, user_service, request, limiter)
     except Exception as e:
         http_exception = handle_exception(e)
         if http_exception:
@@ -167,7 +174,7 @@ async def search_users(
 
 @router.get(
     "/{username}",
-    response_model=UserRead,
+    response_model=PublicUserRead,
     summary="Get User Profile by Username",
     description="""
             Retrieves a user's profile information by their unique username.
@@ -278,6 +285,7 @@ async def update_user_profile(
         if user is None:
             raise HTTPException(status_code=404, detail=f"User with username {username} not found")
 
+        protect_profile(values, user)
         await user_service.update(user["id"], values, db)
         return {"message": "User updated successfully"}
     except Exception as e:
