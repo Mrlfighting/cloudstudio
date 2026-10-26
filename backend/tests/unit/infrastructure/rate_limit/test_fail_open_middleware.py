@@ -3,7 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import Request
+from fastapi import HTTPException, Request
 
 from src.infrastructure.rate_limit.exceptions import RateLimitException
 from src.infrastructure.rate_limit.middleware import _check_rate_limit
@@ -13,6 +13,8 @@ from src.infrastructure.rate_limit.middleware import _check_rate_limit
 def mock_request():
     """Create a mock Request object."""
     mock = MagicMock(spec=Request)
+    mock.scope = {}
+    mock.headers = {}
     mock.url = MagicMock()
     mock.url.path = "/api/v1/test"
     mock.client = MagicMock()
@@ -59,8 +61,9 @@ async def test_middleware_fail_closed_behavior(mock_request, mock_db, mock_rate_
     ):
         mock_inc.side_effect = Exception("Backend error")
 
-        with pytest.raises(RateLimitException):
+        with pytest.raises(HTTPException) as unavailable:
             await _check_rate_limit(mock_request, mock_db)
+        assert unavailable.value.status_code == 503
 
         mock_inc.assert_called_once()
         assert mock_inc.call_args[1]["fail_open"] is False

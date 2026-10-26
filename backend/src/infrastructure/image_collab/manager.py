@@ -7,6 +7,8 @@
 编辑锁已迁到 Redis 分布式锁（见 lock.py），此处不再维护 lock_holder。
 """
 
+import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -23,6 +25,7 @@ class Room:
     # WebSocket → {"user_id", "name", "username", "can_edit"}
     connections: dict[WebSocket, dict[str, Any]] = field(default_factory=dict)
     state: PictureEditState = field(default_factory=PictureEditState)
+    revision: int = 0
 
     def is_empty(self) -> bool:
         return not self.connections
@@ -53,6 +56,7 @@ class RoomManager:
         user: dict[str, Any],
         can_edit: bool,
         initial_state: PictureEditState | None = None,
+        authorize: Callable[[], Awaitable[bool]] | None = None,
     ) -> tuple[PictureEditState, bool]:
         """加入房间；返回 (当前编辑状态, 是否为该房间首个连接)。
 
@@ -69,6 +73,7 @@ class RoomManager:
             "name": user.get("name"),
             "username": user.get("username"),
             "can_edit": can_edit,
+            "authorize": authorize,
         }
         return room.state, is_first
 
@@ -102,15 +107,9 @@ class RoomManager:
         if room is None:
             return
         data = message.model_dump(mode="json")
-        for ws in list(room.connections.keys()):
-            try:
-                await ws.send_json(data)
-            except Exception:
-                continue
+        await asyncio.gather(*(self._send(room, ws, conn, data) for ws, conn in list(room.connections.items())))
 
-    async def send_to(
-        self, space_id: int, picture_id: int, user_id: int, message: PictureEditResponseMessage
-    ) -> None:
+    async def send_to(self, space_id: int, picture_id: int, user_id: int, message: PictureEditResponseMessage) -> None:
         """定向发送给房间内指定用户的所有连接（用于 ERROR/INFO 等个人响应）。"""
         room = self._rooms.get(self._key(space_id, picture_id))
         if room is None:
@@ -118,10 +117,34 @@ class RoomManager:
         data = message.model_dump(mode="json")
         for ws, conn in list(room.connections.items()):
             if conn["user_id"] == user_id:
-                try:
-                    await ws.send_json(data)
-                except Exception:
-                    continue
+                await self._send(room, ws, conn, data)
+
+    async def _send(self, room: Room, ws: WebSocket, conn: dict, data: dict) -> None:
+        """慢连接最多等待两秒，发送前重新确认会话和成员权限。"""
+        try:
+            async with asyncio.timeout(2):
+                validator = conn.get("authorize")
+                if validator is not None and not await validator():
+                    room.connections.pop(ws, None)
+                    await ws.close(code=4403)
+                    return
+                await ws.send_json(data)
+        except Exception:
+            room.connections.pop(ws, None)
+
+    async def deliver(self, space_id: int, picture_id: int, payload: dict) -> None:
+        """处理跨实例广播事件；序号避免迟到消息覆盖更新的工作状态。"""
+        room = self._rooms.get(self._key(space_id, picture_id))
+        if room is None or payload["revision"] <= room.revision:
+            return
+        room.revision = payload["revision"]
+        message = PictureEditResponseMessage.model_validate(payload["response"])
+        if message.edit_state is not None:
+            room.state = message.edit_state
+        if payload.get("target_user_id") is not None:
+            await self.send_to(space_id, picture_id, payload["target_user_id"], message)
+        else:
+            await self.broadcast(space_id, picture_id, message)
 
     async def close_all(self) -> None:
         """关闭时清空所有房间（应用 shutdown 调用）。"""

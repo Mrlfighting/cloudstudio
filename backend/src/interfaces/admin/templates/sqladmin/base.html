@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  {% block head_meta %}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  {% endblock %}
+  {% block head_css %}
+  <link rel="stylesheet" href="{{ url_for('admin:statics', path='css/tabler.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('admin:statics', path='css/tabler-icons.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('admin:statics', path='css/fontawesome.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('admin:statics', path='css/select2.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('admin:statics', path='css/flatpickr.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('admin:statics', path='css/main.css') }}">
+  {% endblock %}
+  {% if admin.favicon_url %}
+  <link rel="icon" href="{{ admin.favicon_url }}">
+  {% endif %}
+  <title>{{ admin.title }}</title>
+  {% block head %}
+  {% endblock %}
+  {% block head_tail %}
+  {% endblock %}
+</head>
+
+<body>
+  {% block body %}
+  <main>
+    {% block main %}
+    {% endblock %}
+  </main>
+  {% endblock %}
+  {% block tail_js %}
+  <script type="text/javascript" src="{{ url_for('admin:statics', path='js/jquery.min.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('admin:statics', path='js/tabler.min.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('admin:statics', path='js/popper.min.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('admin:statics', path='js/bootstrap.min.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('admin:statics', path='js/select2.full.min.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('admin:statics', path='js/flatpickr.min.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('admin:statics', path='js/main.js') }}"></script>
+  {% endblock %}
+  {% block tail %}
+  {% endblock %}
+
+
+
+  <!-- 后台表单与 AJAX 使用同一签名令牌，退出也必须由同源交互发起。 -->
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const token = document.cookie.split('; ').find(v => v.startsWith('atelier_admin_csrf='))?.split('=').slice(1).join('=') || '';
+    document.querySelectorAll('form').forEach(form => {
+      const input = document.createElement('input');
+      input.type = 'hidden'; input.name = 'csrf_token'; input.value = token;
+      form.appendChild(input);
+    });
+    if (window.jQuery) window.jQuery.ajaxSetup({headers: {'X-Admin-CSRF': token}});
+    document.querySelectorAll('a[href$="/logout"]').forEach(link => {
+      link.addEventListener('click', async event => {
+        event.preventDefault();
+        const response = await fetch(link.href, {headers: {'X-Admin-CSRF': token}, credentials: 'same-origin'});
+        if (response.ok) window.location.assign('/admin/login');
+        else window.alert('退出失败，请刷新页面后重试');
+      });
+    });
+  });
+  </script>
+
+</body>
+
+</html>

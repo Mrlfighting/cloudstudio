@@ -17,6 +17,8 @@ from src.modules.tier.schemas import TierSelect
 def mock_request():
     """Create a mock Request object."""
     mock = MagicMock(spec=Request)
+    mock.scope = {}
+    mock.headers = {}
     mock.url = MagicMock()
     mock.url.path = "/api/v1/test"
     mock.client = MagicMock()
@@ -78,6 +80,7 @@ async def test_check_rate_limit_no_user(mock_request, mock_db):
         patch("src.infrastructure.rate_limit.middleware.increment_and_check") as mock_increment,
     ):
         mock_settings.RATE_LIMITER_ENABLED = True
+        mock_settings.TRUSTED_PROXY_HOPS = 0
         mock_settings.DEFAULT_RATE_LIMIT_LIMIT = 100
         mock_settings.DEFAULT_RATE_LIMIT_PERIOD = 60
 
@@ -103,6 +106,7 @@ async def test_check_rate_limit_with_user(mock_request, mock_db, mock_user):
         patch("src.infrastructure.rate_limit.middleware.crud_rate_limits.get") as mock_get_rate_limit,
     ):
         mock_settings.RATE_LIMITER_ENABLED = True
+        mock_settings.TRUSTED_PROXY_HOPS = 0
         mock_settings.DEFAULT_RATE_LIMIT_LIMIT = 100
         mock_settings.DEFAULT_RATE_LIMIT_PERIOD = 60
 
@@ -135,6 +139,7 @@ async def test_check_rate_limit_no_specific_limits(mock_request, mock_db, mock_u
         patch("src.infrastructure.rate_limit.middleware.logger") as mock_logger,
     ):
         mock_settings.RATE_LIMITER_ENABLED = True
+        mock_settings.TRUSTED_PROXY_HOPS = 0
         mock_settings.DEFAULT_RATE_LIMIT_LIMIT = 100
         mock_settings.DEFAULT_RATE_LIMIT_PERIOD = 60
 
@@ -145,7 +150,7 @@ async def test_check_rate_limit_no_specific_limits(mock_request, mock_db, mock_u
 
         await _check_rate_limit(mock_request, mock_db, mock_user)
 
-        assert mock_logger.warning.called
+        assert mock_logger.debug.called
         mock_increment.assert_called_once()
         assert mock_increment.call_args.kwargs["limit"] == 100
         assert mock_increment.call_args.kwargs["period"] == 60
@@ -161,6 +166,7 @@ async def test_check_rate_limit_exceeded(mock_request, mock_db):
         patch("src.infrastructure.rate_limit.middleware.logger") as mock_logger,
     ):
         mock_settings.RATE_LIMITER_ENABLED = True
+        mock_settings.TRUSTED_PROXY_HOPS = 0
         mock_settings.DEFAULT_RATE_LIMIT_LIMIT = 100
         mock_settings.DEFAULT_RATE_LIMIT_PERIOD = 60
 

@@ -30,14 +30,14 @@ dependencies = [
     "pydantic>=2.10.6",
     "pydantic-settings>=2.7.1",
     "redis>=6.1.0",
-    "sqladmin>=0.22.0",
+    "sqladmin>=0.27.1,<0.28",
     "sqlalchemy>=2.0.37",
     "taskiq>=0.11.20",
     "taskiq-redis>=1.1.2",
     "taskiq-aio-pika>=0.4.3",
     "user-agents>=2.2.0",
     "cos-python-sdk-v5>=1.9.44",
-    "pillow>=12.3.0",
+    "pillow>=13.0.0,<14",
 ]
 
 [project.optional-dependencies]

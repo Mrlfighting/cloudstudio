@@ -53,6 +53,10 @@ class DatabaseSettings(BaseSettings):
 
     POSTGRES_POOL_SIZE: int = config("POSTGRES_POOL_SIZE", default=20, cast=int)
     POSTGRES_MAX_OVERFLOW: int = config("POSTGRES_MAX_OVERFLOW", default=0, cast=int)
+    # 依赖故障时及时释放请求；禁止无限排队占满应用连接池。
+    POSTGRES_POOL_TIMEOUT: float = config("POSTGRES_POOL_TIMEOUT", default=5.0, cast=float)
+    POSTGRES_CONNECT_TIMEOUT: float = config("POSTGRES_CONNECT_TIMEOUT", default=5.0, cast=float)
+    POSTGRES_COMMAND_TIMEOUT: float = config("POSTGRES_COMMAND_TIMEOUT", default=15.0, cast=float)
 
     @property
     def DATABASE_URL(self) -> str:

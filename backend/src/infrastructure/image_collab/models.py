@@ -10,7 +10,7 @@
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PictureEditMessageType(StrEnum):
@@ -37,17 +37,17 @@ class PictureEditAction(StrEnum):
 class CropRect(BaseModel):
     """裁剪矩形（坐标语义由前端约定，通常为相对原图的像素坐标）。"""
 
-    x: int
-    y: int
-    width: int
-    height: int
+    x: int = Field(ge=0, le=100_000)
+    y: int = Field(ge=0, le=100_000)
+    width: int = Field(gt=0, le=100_000)
+    height: int = Field(gt=0, le=100_000)
 
 
 class PictureEditState(BaseModel):
     """图片编辑状态：旋转角度 + 缩放（仅视图）+ 裁剪框。"""
 
-    rotation: int = 0  # 0 / 90 / 180 / 270
-    zoom: float = 1.0  # 仅视图变换，不落库
+    rotation: int = Field(default=0, ge=0, le=359)
+    zoom: float = Field(default=1.0, gt=0, le=100, allow_inf_nan=False)
     crop: CropRect | None = None
 
     def to_persisted(self) -> dict[str, Any]:

@@ -320,6 +320,7 @@ def mock_rate_limit_settings_fail_open():
     """Mock settings with fail_open=True for rate limiter tests."""
     settings = MagicMock(spec=Settings)
     settings.RATE_LIMITER_ENABLED = True
+    settings.TRUSTED_PROXY_HOPS = 0
     settings.RATE_LIMITER_FAIL_OPEN = True
     settings.DEFAULT_RATE_LIMIT_LIMIT = 100
     settings.DEFAULT_RATE_LIMIT_PERIOD = 60
@@ -331,6 +332,7 @@ def mock_rate_limit_settings_fail_closed():
     """Mock settings with fail_open=False for rate limiter tests."""
     settings = MagicMock(spec=Settings)
     settings.RATE_LIMITER_ENABLED = True
+    settings.TRUSTED_PROXY_HOPS = 0
     settings.RATE_LIMITER_FAIL_OPEN = False
     settings.DEFAULT_RATE_LIMIT_LIMIT = 100
     settings.DEFAULT_RATE_LIMIT_PERIOD = 60

@@ -2,10 +2,10 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from starlette.middleware.sessions import SessionMiddleware
 
 from ..infrastructure.app_factory import create_application, lifespan_factory
 from ..infrastructure.config.settings import get_settings
+from ..infrastructure.readiness import readiness_response
 from ..infrastructure.security import validate_production_security
 from ..interfaces.api import router
 from .admin.initialize import create_admin_interface
@@ -19,7 +19,7 @@ async def lifespan_with_security(app: FastAPI) -> AsyncGenerator[None, None]:
     if settings.PRODUCTION_SECURITY_VALIDATION_ENABLED:
         validate_production_security(settings)
 
-    default_lifespan = lifespan_factory(settings)
+    default_lifespan = lifespan_factory(settings, create_tables_on_startup=settings.CREATE_TABLES_ON_STARTUP)
 
     async with default_lifespan(app):
         yield
@@ -64,7 +64,6 @@ app = create_application(
     openapi_url="/openapi.json",
 )
 
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 create_admin_interface(app)
 
 
@@ -72,3 +71,9 @@ create_admin_interface(app)
 async def health_check() -> dict[str, str]:
     """Health check endpoint for monitoring and load balancers."""
     return {"status": "healthy"}
+
+
+@app.get("/ready", tags=["System"], include_in_schema=False)
+async def readiness_check():
+    """限时探测关键依赖；队列故障不阻止本地工具与已经持久登记的邮件请求。"""
+    return await readiness_response()

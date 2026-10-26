@@ -5,7 +5,7 @@
 """
 
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, Protocol
 
 from .broker import Handler
 from .lock import CollabLock
@@ -14,13 +14,26 @@ from .models import (
     PictureEditMessageType,
     PictureEditRequestMessage,
     PictureEditResponseMessage,
+    PictureEditState,
 )
 
 Persist = Callable[[int, dict[str, Any]], Awaitable[None]]
 
 
+class MessageSink(Protocol):
+    """命令处理仅依赖状态与响应接口，允许提交前先缓冲事件。"""
+
+    def get_state(self, space_id: int, picture_id: int) -> PictureEditState | None: ...
+
+    def update_state(self, space_id: int, picture_id: int, state: PictureEditState) -> PictureEditState | None: ...
+
+    async def broadcast(self, space_id: int, picture_id: int, message: PictureEditResponseMessage) -> None: ...
+
+    async def send_to(self, space_id: int, picture_id: int, user_id: int, message: PictureEditResponseMessage) -> None: ...
+
+
 async def process_message(
-    manager: RoomManager,
+    manager: MessageSink,
     lock: CollabLock,
     space_id: int,
     picture_id: int,
@@ -97,6 +110,7 @@ async def process_message(
             return
         # 落库（非破坏性，覆盖式，仅 rotation + crop，不含 zoom）
         await persist(picture_id, msg.edit_state.to_persisted())
+        manager.update_state(space_id, picture_id, msg.edit_state)
         await manager.broadcast(
             space_id,
             picture_id,

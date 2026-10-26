@@ -1,6 +1,6 @@
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastcrud import PaginatedListResponse, compute_offset, paginated_response
 
 from ...infrastructure.auth.http_exceptions import NotFoundException
@@ -17,8 +17,8 @@ router = APIRouter(tags=["Tiers"])
 async def get_tiers(
     db: AsyncSessionDep,
     tier_service: TierServiceDep,
-    page: int = 1,
-    items_per_page: int = 10,
+    page: int = Query(1, ge=1),
+    items_per_page: int = Query(10, ge=1, le=100),
 ) -> dict:
     """Paginated list of tiers."""
     try:

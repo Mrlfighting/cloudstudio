@@ -117,8 +117,8 @@ async def get_users(
     db: AsyncSessionDep,
     _: CurrentSuperUserDep,
     user_service: UserServiceDep,
-    page: int = 1,
-    items_per_page: int = 10,
+    page: int = Query(1, ge=1),
+    items_per_page: int = Query(10, ge=1, le=100),
 ) -> dict[str, Any]:
     """Get paginated list of all users (admin only)."""
     users_data = await user_service.get_paginated(skip=compute_offset(page, items_per_page), limit=items_per_page, db=db)

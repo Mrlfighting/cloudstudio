@@ -154,11 +154,8 @@ class UserUpdate(BaseModel):
         ),
     ]
     user_profile: Annotated[str | None, Field(max_length=512, examples=["个人简介"], default=None)]
-    google_id: str | None = None
-    github_id: str | None = None
-    oauth_provider: str | None = None
+    # 第三方身份只能由完成提供商验证的 OAuth 流程写入，资料接口不接受绑定字段。
     email_verified: bool | None = None
-    oauth_updated_at: datetime | None = None
 
 
 class UserUpdateInternal(UserUpdate):
