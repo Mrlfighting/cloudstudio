@@ -1,0 +1,2 @@
+# 固定上游原始色卡字节的换行，避免 Windows 自动转换破坏来源哈希。
+*.json text eol=lf

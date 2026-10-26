@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import LoginForm from '@/components/auth/LoginForm.vue'
 import AuthPageShell from '@/components/auth/AuthPageShell.vue'
+import { useEmailVerificationStore } from '@/features/email-verification/store'
 
 const router = useRouter()
 const route = useRoute()
@@ -14,8 +15,9 @@ const redirect = computed(() => {
   return value.startsWith('/') && !value.startsWith('//') ? value : '/pictures'
 })
 
-function handleSuccess(): void {
-  void router.replace(redirect.value)
+async function handleSuccess(): Promise<void> {
+  const allowed = await useEmailVerificationStore().requireVerified('验证邮箱后继续前往你的创作空间')
+  void router.replace(allowed ? redirect.value : '/pictures')
 }
 
 function goRegister(): void {

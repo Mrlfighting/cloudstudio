@@ -80,11 +80,11 @@ class MemcachedBackend(RateLimiterBackend):
             window_start = current_timestamp - (current_timestamp % period)
             rate_limit_key = f"{key_hash}:{window_start}".encode()
 
-            value = await self.client.get(rate_limit_key)
-            current_count = int(value.decode()) if value else 0
-
-            current_count += 1
-            await self.client.set(rate_limit_key, str(current_count).encode(), exptime=period)
+            # add 与 incr 均为服务端原子操作，禁止并发 GET/SET 丢失计数。
+            await self.client.add(rate_limit_key, b"0", exptime=period)
+            current_count = await self.client.incr(rate_limit_key, 1)
+            if current_count is None:
+                raise RateLimiterBackendException("限流计数键在操作时过期，请重试")
 
             is_rate_limited = current_count > limit
             return current_count, is_rate_limited

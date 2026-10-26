@@ -1,0 +1,26 @@
+# 在既有生产 Compose 后叠加此文件；不包含任何真实凭据或服务器地址。
+services:
+  api:
+    environment:
+      CREATE_TABLES_ON_STARTUP: "false"
+      SESSION_BACKEND: redis
+      SESSION_SECURE_COOKIES: "true"
+      RATE_LIMITER_ENABLED: "true"
+      RATE_LIMITER_BACKEND: redis
+      RATE_LIMITER_FAIL_OPEN: "false"
+      TRUSTED_PROXY_HOPS: "1"
+    command:
+      - sh
+      - -c
+      - >-
+        exec uvicorn src.interfaces.main:app --app-dir /app --host 0.0.0.0 --port 8000
+        --workers $${WORKERS:-1} --proxy-headers
+        --forwarded-allow-ips "$${FORWARDED_ALLOW_IPS:-127.0.0.1}"
+        --ws-max-size 16384 --ws-max-queue 16
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"]
+      interval: 15s
+      timeout: 4s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped

@@ -306,16 +306,9 @@ async def increment_and_check(
     """
     backend = rate_limiter_provider.get_backend(backend_name)
 
-    original_fail_open = None
-    if fail_open is not None and fail_open != backend.fail_open:
-        original_fail_open = backend.fail_open
-        backend.fail_open = fail_open
-
-    try:
+    # ContextVar 覆盖不会污染同时进行的后台登录或普通请求。
+    with backend.failure_policy(fail_open):
         return await backend.increment_and_check(key, limit, period)
-    finally:
-        if original_fail_open is not None:
-            backend.fail_open = original_fail_open
 
 
 async def get_count(key: str, backend_name: str | None = None) -> int | None:

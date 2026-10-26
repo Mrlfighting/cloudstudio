@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 
 class RateLimiterBackend(ABC):
@@ -25,7 +27,9 @@ class RateLimiterBackend(ABC):
     Example:
         ```python
         class RedisRateLimiterBackend(RateLimiterBackend):
-            async def increment_and_check(self, key: str, limit: int, period: int) -> tuple[int, bool]:
+            async def increment_and_check(
+                self, key: str, limit: int, period: int
+            ) -> tuple[int, bool]:
                 try:
                     count = await self.redis.incr(key)
                     if count == 1:
@@ -54,7 +58,28 @@ class RateLimiterBackend(ABC):
             - Critical APIs may prefer fail-closed for security
             - Public APIs may prefer fail-open for availability
         """
-        self.fail_open = fail_open
+        self._default_fail_open = fail_open
+        self._failure_override: ContextVar[bool | None] = ContextVar(f"rate_policy_{id(self)}", default=None)
+
+    @property
+    def fail_open(self) -> bool:
+        """故障策略按异步上下文隔离，兼容既有后端读取属性的接口。"""
+        override = self._failure_override.get()
+        return self._default_fail_open if override is None else override
+
+    @fail_open.setter
+    def fail_open(self, value: bool) -> None:
+        """显式配置默认策略，不影响已设置覆盖值的并发请求。"""
+        self._default_fail_open = value
+
+    @contextmanager
+    def failure_policy(self, override: bool | None):
+        """覆盖仅在当前请求有效，退出时恢复原上下文。"""
+        token = self._failure_override.set(override)
+        try:
+            yield
+        finally:
+            self._failure_override.reset(token)
 
     @abstractmethod
     async def increment_and_check(self, key: str, limit: int, period: int) -> tuple[int, bool]:

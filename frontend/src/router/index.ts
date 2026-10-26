@@ -7,6 +7,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
+import { useEmailVerificationStore } from '@/features/email-verification/store'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -180,6 +181,14 @@ router.beforeEach(async (to, from) => {
   }
   if (to.meta.requiresAdmin && !auth.isAdmin) {
     return { path: '/profile' }
+  }
+  // 个人中心保留邮箱管理入口，其他私有页面在挂载前完成邮箱校验。
+  if (to.meta.requiresAuth && to.name !== 'profile' && auth.isAuthenticated) {
+    const allowed = await useEmailVerificationStore().requireVerified(`验证邮箱后可进入${String(to.meta.title ?? '该功能')}`)
+    if (!allowed) {
+      if (from.name && !from.meta.guestOnly && (!from.meta.requiresAuth || from.name === 'profile')) return false
+      return { path: '/pictures' }
+    }
   }
   return true
 })

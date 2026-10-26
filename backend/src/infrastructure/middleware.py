@@ -21,10 +21,11 @@ class ClientCacheMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         response: Response = await call_next(request)
-        if request.url.path.startswith("/api/"):
-            response.headers["Cache-Control"] = "private, no-cache, no-store, must-revalidate"
-        else:
+        # 只有明确的静态资源允许共享缓存，后台 HTML、文档和动态响应均禁止缓存。
+        if request.url.path.startswith("/static/") and "set-cookie" not in response.headers:
             response.headers["Cache-Control"] = f"public, max-age={self.max_age}"
+        else:
+            response.headers["Cache-Control"] = "private, no-cache, no-store, must-revalidate"
         return response
 
 

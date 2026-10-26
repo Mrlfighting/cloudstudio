@@ -11,6 +11,7 @@ license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "aiosmtplib>=5.0,<6",
     "aio-pika>=9.5.0",
     "aiomcache>=0.8.2",
     "aiosqlite>=0.21.0",
@@ -18,6 +19,7 @@ dependencies = [
     "asyncpg>=0.30.0",
     "cachetools>=5.5.0",
     "crudauth[all]>=0.6.0,<0.7.0",
+    "cryptography>=46",
     "faker>=37.1.0",
     "fastapi[standard]>=0.115.8",
     "fastcrud>=0.21.0",
@@ -28,14 +30,14 @@ dependencies = [
     "pydantic>=2.10.6",
     "pydantic-settings>=2.7.1",
     "redis>=6.1.0",
-    "sqladmin>=0.22.0",
+    "sqladmin>=0.27.1,<0.28",
     "sqlalchemy>=2.0.37",
     "taskiq>=0.11.20",
     "taskiq-redis>=1.1.2",
     "taskiq-aio-pika>=0.4.3",
     "user-agents>=2.2.0",
     "cos-python-sdk-v5>=1.9.44",
-    "pillow>=12.3.0",
+    "pillow>=13.0.0,<14",
 ]
 
 [project.optional-dependencies]
@@ -52,6 +54,10 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["*"]
+
+[tool.setuptools.package-data]
+# 邮件模板随wheel发布，不能只在本地源码目录中可用。
+"modules.email_verification" = ["templates/*.html", "templates/*.txt"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

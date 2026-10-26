@@ -1,14 +1,16 @@
 <script setup lang="ts">
 /** 全局登录/注册弹窗，同时承接受保护路由的登录后跳转。 */
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import LoginForm from '@/components/auth/LoginForm.vue'
 import RegisterForm from '@/components/auth/RegisterForm.vue'
 import { useAuthGateStore, type AuthDialogMode } from '@/stores/authGate'
+import { useEmailVerificationStore } from '@/features/email-verification/store'
 
 const route = useRoute()
 const router = useRouter()
 const gate = useAuthGateStore()
+const continuingDownload = ref(false)
 let routePromptActive = false
 
 function firstQueryValue(value: unknown): string {
@@ -61,21 +63,41 @@ watch(
 )
 
 function handleVisibilityChange(visible: boolean): void {
-  if (!visible) gate.cancelAuthentication()
+  // 程序关闭登录弹窗是为了衔接邮箱验证，不能误当成用户取消。
+  if (!visible && gate.visible) gate.cancelAuthentication()
 }
 
-function handleLoginSuccess(): void {
-  gate.authenticationCompleted()
+async function handleLoginSuccess(): Promise<void> {
+  await gate.authenticationCompleted()
 }
 
 function handleRegisterSuccess(account: string): void {
   gate.registrationCompleted(account)
 }
 
-function continueDownload(): void {
-  if (!gate.continuationUrl) return
-  window.open(gate.continuationUrl, '_blank', 'noopener')
+async function continueDownload(): Promise<void> {
+  if (!gate.continuationUrl || continuingDownload.value) return
+  continuingDownload.value = true
+  const url = gate.continuationUrl
+  const email = useEmailVerificationStore()
+  const owner = email.owner
+  // 在用户手势中预留空白窗口；校验通过前不访问下载地址，避免异步弹窗拦截。
+  const downloadWindow = email.canUsePrivate ? window.open('about:blank', '_blank') : null
+  if (downloadWindow) downloadWindow.opener = null
   gate.closeContinuation()
+  try {
+    const allowed = await gate.requireAuthentication({ reason: '验证邮箱后继续下载' })
+    if (!allowed || (owner != null && email.owner !== owner)) {
+      downloadWindow?.close()
+      return
+    }
+    if (downloadWindow && !downloadWindow.closed) downloadWindow.location.replace(url)
+    else if (!downloadWindow) gate.showDownloadFallback(url)
+  } catch {
+    downloadWindow?.close()
+  } finally {
+    continuingDownload.value = false
+  }
 }
 </script>
 
@@ -101,7 +123,7 @@ function continueDownload(): void {
         </span>
         <div>
           <h2>{{ gate.continuationUrl ? '继续下载' : gate.mode === 'login' ? '欢迎回来' : '创建账号' }}</h2>
-          <p>{{ gate.reason || (gate.mode === 'login' ? '登录云上工坊，继续发现灵感' : '注册后即可使用完整功能') }}</p>
+          <p>{{ gate.reason || (gate.mode === 'login' ? '登录云上工坊，继续发现灵感' : '注册并验证邮箱后可使用完整功能') }}</p>
         </div>
       </div>
     </template>
@@ -109,7 +131,7 @@ function continueDownload(): void {
     <div v-if="gate.continuationUrl" class="continuation-panel">
       <el-icon :size="36"><CircleCheckFilled /></el-icon>
       <p>浏览器阻止了自动打开新窗口，请点击按钮继续。</p>
-      <el-button type="primary" @click="continueDownload">继续下载</el-button>
+      <el-button type="primary" :loading="continuingDownload" @click="continueDownload">继续下载</el-button>
     </div>
 
     <LoginForm

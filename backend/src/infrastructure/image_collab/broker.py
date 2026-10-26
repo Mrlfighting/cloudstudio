@@ -1,11 +1,12 @@
-"""图片协同编辑的 RabbitMQ 消息缓冲/分发（topic 交换机 + 每房间队列）。
+"""协同结果事件分发：topic 交换机与每实例、每房间的专属队列。
 
-- publish：把客户端消息发布到 topic 交换机（路由键 = collab.{space_id}.{picture_id}）
-- subscribe/unsubscribe：为房间声明队列并消费 / 停止消费并删除队列
-- 每房间一个队列 + 单消费者 prefetch=1 → 房间内消息严格 FIFO，不同房间并行
+命令在原连接持共享锁执行，消息只携带已完成的响应；消费者不再次落库。
+序号去重和临时状态由 Redis 维护，Robust 连接恢复断线后的订阅。
 """
 
+import asyncio
 import json
+import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -29,6 +30,8 @@ class CollabBroker:
 
     def __init__(self, url: str) -> None:
         self._url = url
+        self._instance_id = uuid.uuid4().hex
+        self._connect_lock = asyncio.Lock()
         self._connection: Any = None
         self._channel: Any = None
         self._exchange: Any = None
@@ -37,34 +40,43 @@ class CollabBroker:
 
     @property
     def available(self) -> bool:
-        return self._channel is not None
+        return self._is_available()
+
+    def _is_available(self) -> bool:
+        """每次重新读取连接状态，等待连接锁期间状态可能已经变化。"""
+        return self._channel is not None and not self._channel.is_closed and not self._connection.is_closed
 
     async def connect(self) -> None:
         """建立连接、通道、声明 topic 交换机（失败抛出，由上层决定降级）。"""
-        self._connection = await aio_pika.connect(self._url, timeout=3.0)
+        self._connection = await aio_pika.connect_robust(self._url, timeout=3.0, reconnect_interval=1)
         self._channel = await self._connection.channel()
         await self._channel.set_qos(prefetch_count=1)
         self._exchange = await self._channel.declare_exchange(EXCHANGE_NAME, ExchangeType.TOPIC)
 
     async def publish(self, space_id: int, picture_id: int, payload: dict[str, Any]) -> None:
         """发布消息到房间路由键。"""
-        if self._exchange is None:
-            return
+        await self.ensure_connected()
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         await self._exchange.publish(
             Message(body=body, content_type="application/json"),
             routing_key=_routing_key(space_id, picture_id),
+            timeout=2,
         )
 
     async def subscribe(self, space_id: int, picture_id: int, handler: Handler) -> None:
         """为房间声明队列并开始消费（幂等：已订阅则跳过）。"""
-        if self._channel is None:
-            return
+        await self.ensure_connected()
         room_key = f"{space_id}:{picture_id}"
         if room_key in self._consumers:
             return
 
-        queue = await self._channel.declare_queue(_queue_name(space_id, picture_id), durable=False)
+        # 每个实例独立接收已经处理的事件，禁止竞争消费导致其他实例看不到更新。
+        queue = await self._channel.declare_queue(
+            f"{_queue_name(space_id, picture_id)}.{self._instance_id}",
+            durable=False,
+            exclusive=True,
+            auto_delete=True,
+        )
         await queue.bind(self._exchange, _routing_key(space_id, picture_id))
 
         async def _on_message(message: IncomingMessage) -> None:
@@ -98,3 +110,16 @@ class CollabBroker:
             await self._channel.close()
         if self._connection is not None:
             await self._connection.close()
+
+    async def ensure_connected(self) -> None:
+        """启动连接失败后仍可重试；已建立的 Robust 连接负责恢复订阅。"""
+        if self._is_available():
+            return
+        async with self._connect_lock:
+            if self._is_available():
+                return
+            if self._connection is not None and not self._connection.is_closed and self._channel is not None:
+                await asyncio.wait_for(self._connection.connected.wait(), timeout=3)
+                await asyncio.wait_for(self._channel.ready(), timeout=3)
+            else:
+                await self.connect()

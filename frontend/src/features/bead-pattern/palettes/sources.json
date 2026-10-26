@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/HansBug/pindou-color-data",
+  "revision": "178dafbc9e77d3de556550dbd058270200129186",
+  "license": "MIT",
+  "files": {
+    "mard-291-github.json": "baa8e0a4a414cb45dfb62859ac2a4a8ec23a887498fdf8405d2ec96c90148455",
+    "coco-291.json": "46336ae0b4bd267041f49d339c459edc938af33b2370846c0245dff7e0b504a0",
+    "manman-278.json": "cfa0823b2114e196c90f2a54d428a7af5354634cad2ccb390a873ba6b9ffce71",
+    "panpan-289.json": "853168b6a78527fffeeb58d1dc4fab79c999c2a029c92dd05b9167898f43c105",
+    "mixiaowo-290.json": "1a6c19b8a0e433f98fd1ddbafede344b96469ecb15153bcba388ea06cc4ffbe0"
+  }
+}

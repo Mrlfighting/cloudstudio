@@ -4,6 +4,7 @@
  */
 import { defineStore } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
+import { useEmailVerificationStore } from '@/features/email-verification/store'
 
 export type AuthDialogMode = 'login' | 'register'
 
@@ -14,6 +15,7 @@ export interface AuthenticationRequest {
 
 let pendingPromise: Promise<boolean> | null = null
 let settlePending: ((authenticated: boolean) => void) | null = null
+let completionSerial = 0
 
 function resolvePending(authenticated: boolean): void {
   settlePending?.(authenticated)
@@ -33,7 +35,9 @@ export const useAuthGateStore = defineStore('auth-gate', {
   actions: {
     requireAuthentication(request: AuthenticationRequest = {}): Promise<boolean> {
       const auth = useAuthStore()
-      if (auth.isAuthenticated) return Promise.resolve(true)
+      if (auth.isAuthenticated) {
+        return pendingPromise ?? useEmailVerificationStore().requireVerified(request.reason || '验证邮箱后即可继续此操作')
+      }
 
       this.mode = request.mode ?? this.mode
       this.reason = request.reason ?? this.reason
@@ -57,8 +61,16 @@ export const useAuthGateStore = defineStore('auth-gate', {
       this.mode = 'login'
     },
 
-    authenticationCompleted(): void {
+    async authenticationCompleted(): Promise<void> {
+      const auth = useAuthStore()
+      const id = auth.user?.id
+      const serial = ++completionSerial
+      // 关闭登录表单但暂不放行原操作，接着显示独立的邮箱验证弹窗。
       this.visible = false
+      const verified = await useEmailVerificationStore().requireVerified(this.reason || '验证邮箱后继续使用完整功能')
+      if (serial !== completionSerial) return
+      if (auth.user?.id !== id) { this.cancelAuthentication(); return }
+      if (!verified) { this.cancelAuthentication(); return }
       this.reason = ''
       this.prefilledAccount = ''
       this.continuationUrl = ''
@@ -66,6 +78,7 @@ export const useAuthGateStore = defineStore('auth-gate', {
     },
 
     cancelAuthentication(): void {
+      completionSerial++
       this.visible = false
       this.reason = ''
       this.prefilledAccount = ''
@@ -75,7 +88,7 @@ export const useAuthGateStore = defineStore('auth-gate', {
 
     showDownloadFallback(url: string): void {
       this.continuationUrl = url
-      this.reason = '登录已完成，请点击下方按钮继续下载'
+      this.reason = '账号与邮箱验证已完成，请点击下方按钮继续下载'
       this.visible = true
     },
 

@@ -9,6 +9,8 @@ except ImportError:
     )
 
 from pydantic import BaseModel
+from redis.asyncio.retry import Retry
+from redis.backoff import NoBackoff
 
 from ....modules.common.utils.logger import get_logger
 from ..base import RateLimiterBackend
@@ -61,6 +63,7 @@ class RedisBackend(RateLimiterBackend):
                 socket_timeout=self.settings.connect_timeout,
                 socket_connect_timeout=self.settings.connect_timeout,
                 socket_keepalive=True,
+                retry=Retry(NoBackoff(), 0),
                 decode_responses=True,
                 max_connections=self.settings.pool_size,
             )

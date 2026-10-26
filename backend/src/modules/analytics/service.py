@@ -14,6 +14,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...infrastructure.cache.method_cache import cached
+from ..common.exceptions import SpaceBannedError
 from ..pictures.enums import PictureStatus
 from ..pictures.models import Picture
 from ..space.enums import SpaceType
@@ -351,13 +352,12 @@ class AnalyticsService:
             Space.space_type == SpaceType.PRIVATE,
             Space.is_deleted == False,  # noqa: E712
         )
-        return (await db.execute(stmt)).scalar_one_or_none()
+        space = (await db.execute(stmt)).scalar_one_or_none()
+        if space is not None and space.status != "active":
+            raise SpaceBannedError("空间已被封禁")
+        return space
 
     async def _get_user_space_id(self, db: AsyncSession, user_id: int) -> int | None:
         """取当前用户 active 私有空间 id，无则返回 None。"""
-        stmt = select(Space.id).where(
-            Space.user_id == user_id,
-            Space.space_type == SpaceType.PRIVATE,
-            Space.is_deleted == False,  # noqa: E712
-        )
-        return (await db.execute(stmt)).scalar_one_or_none()
+        space = await self._get_user_space(db, user_id)
+        return space.id if space is not None else None

@@ -11,6 +11,9 @@ engine = create_async_engine(
     future=True,
     pool_size=settings.POSTGRES_POOL_SIZE,
     max_overflow=settings.POSTGRES_MAX_OVERFLOW,
+    pool_pre_ping=True,
+    pool_timeout=settings.POSTGRES_POOL_TIMEOUT,
+    connect_args={"timeout": settings.POSTGRES_CONNECT_TIMEOUT, "command_timeout": settings.POSTGRES_COMMAND_TIMEOUT},
 )
 
 local_session = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)

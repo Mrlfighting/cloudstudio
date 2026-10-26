@@ -9,6 +9,8 @@ except ImportError:
     )
 
 from pydantic import BaseModel
+from redis.asyncio.retry import Retry
+from redis.backoff import NoBackoff
 
 from ...config.settings import get_settings
 from ..base import CacheBackend
@@ -54,6 +56,8 @@ class RedisBackend(CacheBackend):
             db=self.settings.db,
             password=self.settings.password,
             socket_timeout=self.settings.connect_timeout,
+            socket_connect_timeout=self.settings.connect_timeout,
+            retry=Retry(NoBackoff(), 0),
             max_connections=self.settings.pool_size,
         )
 

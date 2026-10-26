@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ...infrastructure.database.models import SoftDeleteMixin, TimestampMixin
@@ -29,7 +29,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     username: Mapped[str] = mapped_column(String(20), unique=True, index=True)
     # 邮箱可空：注册仅需账号+密码，crudauth 只要求该唯一列存在
     # 注意：这里不设 Python 默认值（保持 MappedAsDataclass 字段顺序：非默认字段在前）
-    email: Mapped[str | None] = mapped_column(String(50), unique=True, index=True)
+    email: Mapped[str | None] = mapped_column(String(254), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(100))
 
     profile_image_url: Mapped[str] = mapped_column(String, default="https://profileimageurl.com")
@@ -70,3 +70,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
 
     def __repr__(self) -> str:
         return f"{self.name} ({self.email})"
+
+
+# 邮箱归属不区分大小写且包括软删除账号；迁移先检查历史冲突，不自动合并账号。
+Index("uq_user_email_normalized", func.lower(func.btrim(User.email)), unique=True)

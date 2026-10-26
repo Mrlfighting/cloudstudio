@@ -122,8 +122,13 @@ async def upload_space_picture(
     """上传图片到空间。"""
     try:
         return await space_service.upload_picture(
-            db=db, current_user=current_user, file=file, name=name,
-            introduction=introduction, category=category, tags_str=tags,
+            db=db,
+            current_user=current_user,
+            file=file,
+            name=name,
+            introduction=introduction,
+            category=category,
+            tags_str=tags,
         )
     except Exception as e:
         http_exception = handle_exception(e)
@@ -151,8 +156,13 @@ async def list_space_pictures(
     """我的空间图片列表。"""
     try:
         data = await space_service.list_pictures(
-            db, current_user, page=page, items_per_page=items_per_page,
-            category=category, keyword=keyword, sort=sort,
+            db,
+            current_user,
+            page=page,
+            items_per_page=items_per_page,
+            category=category,
+            keyword=keyword,
+            sort=sort,
         )
         return paginated_response(crud_data=data, page=page, items_per_page=items_per_page)
     except Exception as e:
@@ -262,12 +272,13 @@ async def create_outpainting_task(
 )
 async def query_outpainting_task(
     task_id: str,
+    db: AsyncSessionDep,
     current_user: CurrentUserDep,
     space_service: SpaceServiceDep,
 ) -> QueryTaskResponse:
     """查询扩图任务结果。"""
     try:
-        return await space_service.query_outpainting_task(task_id)
+        return await space_service.query_outpainting_task(db, current_user, task_id)
     except Exception as e:
         http_exception = handle_exception(e)
         if http_exception:
@@ -524,8 +535,14 @@ async def upload_team_picture(
     """上传图片到团队空间。"""
     try:
         return await space_service.upload_team_picture(
-            db=db, current_user=current_user, space_id=space_id, file=file, name=name,
-            introduction=introduction, category=category, tags_str=tags,
+            db=db,
+            current_user=current_user,
+            space_id=space_id,
+            file=file,
+            name=name,
+            introduction=introduction,
+            category=category,
+            tags_str=tags,
         )
     except Exception as e:
         http_exception = handle_exception(e)
@@ -553,8 +570,13 @@ async def list_team_pictures(
     """团队空间图片列表。"""
     try:
         data = await space_service.list_team_pictures(
-            db, space_id, page=page, items_per_page=items_per_page,
-            category=category, keyword=keyword, sort=sort,
+            db,
+            space_id,
+            page=page,
+            items_per_page=items_per_page,
+            category=category,
+            keyword=keyword,
+            sort=sort,
         )
         return paginated_response(crud_data=data, page=page, items_per_page=items_per_page)
     except Exception as e:
@@ -654,8 +676,13 @@ async def list_spaces(
     """空间列表（管理员）。"""
     try:
         data = await space_service.list_admin(
-            db, page=page, items_per_page=items_per_page,
-            name=name, user_id=user_id, space_level=space_level, space_type=space_type,
+            db,
+            page=page,
+            items_per_page=items_per_page,
+            name=name,
+            user_id=user_id,
+            space_level=space_level,
+            space_type=space_type,
         )
         return paginated_response(crud_data=data, page=page, items_per_page=items_per_page)
     except Exception as e:
@@ -702,7 +729,9 @@ async def update_space(
     """编辑空间（管理员）。"""
     try:
         return await space_service.update_admin(
-            db, space_id, values.name,
+            db,
+            space_id,
+            values.name,
             int(values.space_level) if values.space_level is not None else None,
         )
     except Exception as e:

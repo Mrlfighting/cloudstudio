@@ -10,6 +10,7 @@ import { userApi } from '@/api/user'
 import { getErrorMessage } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import type { UpdateProfilePayload } from '@/types/user'
+import EmailSettingsCard from '@/features/email-verification/EmailSettingsCard.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -21,7 +22,6 @@ const avatarFailed = ref(false)
 const form = reactive({
   name: '',
   username: '',
-  email: '',
   profile_image_url: '',
   user_profile: '',
 })
@@ -35,7 +35,6 @@ const rules: FormRules = {
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { pattern: /^[a-z0-9]{2,20}$/, message: '用户名为 2-20 位小写字母或数字', trigger: 'blur' },
   ],
-  email: [{ type: 'email', message: '邮箱格式不正确', trigger: 'blur' }],
   profile_image_url: [
     {
       pattern: /^(https?|ftp):\/\/[^\s/$.?#][^\s]*$/,
@@ -52,9 +51,10 @@ const avatarPreview = computed(() => {
 })
 
 const profileInitial = computed(() => (form.name.trim() || form.username.trim() || 'U').charAt(0).toUpperCase())
+const boundEmail = computed(() => auth.user?.email ?? '')
 
 const completionPercent = computed(() => {
-  const fields = [form.name, form.username, form.email, form.profile_image_url, form.user_profile]
+  const fields = [form.name, form.username, boundEmail.value, form.profile_image_url, form.user_profile]
   return Math.round((fields.filter((value) => value.trim()).length / fields.length) * 100)
 })
 
@@ -73,7 +73,6 @@ function prefill() {
   if (!auth.user) return
   form.name = auth.user.name
   form.username = auth.user.username
-  form.email = auth.user.email ?? ''
   form.profile_image_url = auth.user.profile_image_url ?? ''
   form.user_profile = auth.user.user_profile ?? ''
 }
@@ -95,7 +94,6 @@ async function handleSubmit() {
   const payload: UpdateProfilePayload = {
     name: form.name,
     username: form.username,
-    email: form.email.trim() ? form.email.trim() : null,
     profile_image_url: form.profile_image_url.trim() ? form.profile_image_url.trim() : null,
     user_profile: form.user_profile.trim() ? form.user_profile.trim() : null,
   }
@@ -109,7 +107,7 @@ async function handleSubmit() {
     auth.setUser(me)
     router.push('/profile')
   } catch (err) {
-    ElMessage.error(getErrorMessage(err, '资料更新失败，该用户名或邮箱可能已被占用'))
+    ElMessage.error(getErrorMessage(err, '资料更新失败，该用户名可能已被占用'))
   } finally {
     loading.value = false
   }
@@ -172,14 +170,10 @@ async function handleSubmit() {
           <section class="form-section">
             <div class="section-heading">
               <span class="section-icon section-icon--sky"><el-icon><Postcard /></el-icon></span>
-              <div><h3>联系与头像</h3><p>邮箱和头像均可选填，留空即可清除原内容。</p></div>
+              <div><h3>邮箱与头像</h3><p>邮箱通过独立验证码流程管理；头像地址可选填。</p></div>
             </div>
             <div class="field-grid">
-              <el-form-item label="邮箱" prop="email">
-                <el-input v-model="form.email" placeholder="name@example.com" clearable>
-                  <template #prefix><el-icon><Message /></el-icon></template>
-                </el-input>
-              </el-form-item>
+              <el-form-item label="邮箱管理"><EmailSettingsCard compact /></el-form-item>
               <el-form-item label="头像地址" prop="profile_image_url">
                 <el-input v-model="form.profile_image_url" placeholder="https://..." clearable>
                   <template #prefix><el-icon><Link /></el-icon></template>
@@ -241,9 +235,9 @@ async function handleSubmit() {
             <h2>{{ form.name || '你的昵称' }}</h2>
             <div class="preview-username">@{{ form.username || 'username' }}</div>
             <p>{{ form.user_profile || '在这里写下你的个人介绍，让大家更了解你。' }}</p>
-            <div class="preview-contact" :class="{ 'is-empty': !form.email }">
+            <div class="preview-contact" :class="{ 'is-empty': !boundEmail }">
               <el-icon><Message /></el-icon>
-              <span>{{ form.email || '暂未填写邮箱' }}</span>
+              <span>{{ boundEmail || '暂未绑定邮箱' }}</span>
             </div>
           </div>
         </section>
@@ -258,7 +252,7 @@ async function handleSubmit() {
           <div class="completion-list">
             <span :class="{ complete: form.name.trim() }"><i></i>昵称</span>
             <span :class="{ complete: form.username.trim() }"><i></i>用户名</span>
-            <span :class="{ complete: form.email.trim() }"><i></i>邮箱</span>
+            <span :class="{ complete: boundEmail.trim() }"><i></i>邮箱</span>
             <span :class="{ complete: form.profile_image_url.trim() }"><i></i>头像</span>
             <span :class="{ complete: form.user_profile.trim() }"><i></i>简介</span>
           </div>
