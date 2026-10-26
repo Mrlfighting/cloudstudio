@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 站点页脚：展示 ICP 备案号并链接至工信部官网
+ * 站点页脚：统一展示 ICP 备案与公安联网备案信息
  *
  * @prop fixed 固定于视口底部（用于登录/注册等垂直居中的独立外壳页，
  *             避免页脚作为 flex 子项挤压居中卡片）
@@ -11,6 +11,8 @@ const props = defineProps<{
 
 const ICP_NUMBER = '赣ICP备2026023597号-1'
 const MIIT_URL = 'https://beian.miit.gov.cn/'
+const PUBLIC_SECURITY_NUMBER = '赣公网安备36011102001339号'
+const PUBLIC_SECURITY_URL = 'https://beian.mps.gov.cn/#/query/webSearch?code=36011102001339'
 </script>
 
 <template>
@@ -18,11 +20,20 @@ const MIIT_URL = 'https://beian.miit.gov.cn/'
     <a class="icp-link" :href="MIIT_URL" target="_blank" rel="noopener noreferrer">
       {{ ICP_NUMBER }}
     </a>
+    <a class="icp-link" :href="PUBLIC_SECURITY_URL" target="_blank" rel="noopener noreferrer">
+      <img class="filing-icon" src="/备案图标.png" alt="" width="18" height="18" />
+      {{ PUBLIC_SECURITY_NUMBER }}
+    </a>
   </footer>
 </template>
 
 <style scoped>
 .site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px 20px;
   margin-top: 46px;
   padding: 22px 0 10px;
   border-top: 1px solid var(--app-line-soft);
@@ -30,6 +41,10 @@ const MIIT_URL = 'https://beian.miit.gov.cn/'
 }
 
 .icp-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
   color: var(--app-muted);
   font-size: 13px;
   letter-spacing: 0.3px;
@@ -37,7 +52,13 @@ const MIIT_URL = 'https://beian.miit.gov.cn/'
   transition: color 0.2s ease;
 }
 
-.icp-link:hover {
+.filing-icon {
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.icp-link:hover,
+.icp-link:focus-visible {
   color: var(--app-primary);
 }
 
@@ -58,7 +79,8 @@ const MIIT_URL = 'https://beian.miit.gov.cn/'
 }
 
 @media (max-width: 560px) {
-  .site-footer { margin-top: 32px; padding: 18px 12px calc(10px + env(safe-area-inset-bottom)); }
+  /* 小屏将整条备案链接换行，图标与备案号始终保持同一行。 */
+  .site-footer { gap: 6px 14px; margin-top: 32px; padding: 18px 12px calc(10px + env(safe-area-inset-bottom)); }
   .site-footer.is-fixed { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
   .icp-link { font-size: 11px; }
 }
