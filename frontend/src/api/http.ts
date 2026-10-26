@@ -93,6 +93,7 @@ http.interceptors.response.use(
 
 /** 统一的错误消息提取（后端 HTTPException 返回 {detail}；422 被脱敏为通用串） */
 export function getErrorMessage(err: unknown, fallback = '操作失败，请重试'): string {
+  if (err instanceof Error && (err as Error & { code?: string }).code === 'EMAIL_VERIFICATION_REQUIRED') return err.message
   const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
   if (typeof detail === 'string' && detail.length) return detail
   const status = (err as { response?: { status?: number } })?.response?.status

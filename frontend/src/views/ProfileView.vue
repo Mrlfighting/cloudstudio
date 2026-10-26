@@ -10,6 +10,7 @@ import RoleTag from '@/components/RoleTag.vue'
 import StatCard from '@/components/StatCard.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import EmptyValue from '@/components/EmptyValue.vue'
+import EmailSettingsCard from '@/features/email-verification/EmailSettingsCard.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -102,6 +103,8 @@ onMounted(async () => {
         <StatCard label="邮箱状态" :value="user.email_verified ? '已认证' : '未认证'" description="用于账号安全与通知" :icon="CircleCheckFilled" accent="mint" :delay="200" />
         <StatCard label="会员等级" :value="tierLabel" description="当前账号服务等级" :icon="Medal" accent="lavender" :delay="260" />
       </section>
+
+      <EmailSettingsCard />
 
       <section class="profile-content-grid">
         <article class="profile-panel profile-details analytics-reveal" style="--reveal-delay: 320ms">

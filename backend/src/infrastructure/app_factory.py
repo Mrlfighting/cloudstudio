@@ -272,13 +272,8 @@ def create_application(
 
     kwargs.update(metadata)
 
-    hide_docs = (
-        isinstance(settings, EnvironmentSettings)
-        and settings.ENVIRONMENT == EnvironmentOption.PRODUCTION
-        and not _enable_docs_in_production
-    )
-    if hide_docs:
-        kwargs.update({"docs_url": None, "redoc_url": None, "openapi_url": None})
+    # 始终关闭内置文档路由，避免它们先匹配而绕过下方自定义路由的管理员鉴权。
+    kwargs.update({"docs_url": None, "redoc_url": None, "openapi_url": None})
 
     if lifespan is None:
         lifespan = lifespan_factory(settings, create_tables_on_startup=_create_tables_on_startup)

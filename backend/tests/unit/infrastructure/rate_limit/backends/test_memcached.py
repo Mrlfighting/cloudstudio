@@ -44,42 +44,39 @@ async def test_init_error():
 @pytest.mark.asyncio
 async def test_increment_and_check_new_key(memcached_backend, mock_aiomcache):
     """Test incrementing a counter for a new key."""
-    mock_aiomcache.get.return_value = None
+    mock_aiomcache.incr.return_value = 1
 
     count, is_limited = await memcached_backend.increment_and_check(key="test:123", limit=5, period=60)
 
     assert count == 1
     assert is_limited is False
 
-    assert mock_aiomcache.get.called
-    assert mock_aiomcache.set.called
-
-    set_args = mock_aiomcache.set.call_args.args
-    assert set_args[1] == b"1"
-    assert mock_aiomcache.set.call_args.kwargs["exptime"] == 60
+    mock_aiomcache.add.assert_awaited_once()
+    mock_aiomcache.incr.assert_awaited_once()
+    assert mock_aiomcache.add.call_args.args[1] == b"0"
+    assert mock_aiomcache.add.call_args.kwargs["exptime"] == 60
 
 
 @pytest.mark.asyncio
 async def test_increment_and_check_existing_key(memcached_backend, mock_aiomcache):
     """Test incrementing a counter for an existing key."""
-    mock_aiomcache.get.return_value = b"4"
+    mock_aiomcache.incr.return_value = 5
 
     count, is_limited = await memcached_backend.increment_and_check(key="test:123", limit=5, period=60)
 
     assert count == 5
     assert is_limited is False
 
-    mock_aiomcache.get.assert_called_once()
-    mock_aiomcache.set.assert_called_once()
-
-    set_args = mock_aiomcache.set.call_args.args
-    assert set_args[1] == b"5"
+    # 已存在的键由服务端直接递增，不能退回 GET/SET 计数。
+    mock_aiomcache.add.assert_awaited_once()
+    mock_aiomcache.incr.assert_awaited_once()
+    mock_aiomcache.get.assert_not_awaited()
 
 
 @pytest.mark.asyncio
 async def test_rate_limited(memcached_backend, mock_aiomcache):
     """Test that requests are rate limited once limit is exceeded."""
-    mock_aiomcache.get.return_value = b"5"
+    mock_aiomcache.incr.return_value = 6
 
     count, is_limited = await memcached_backend.increment_and_check(key="test:123", limit=5, period=60)
 

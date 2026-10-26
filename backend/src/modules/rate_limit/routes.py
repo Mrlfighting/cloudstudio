@@ -1,10 +1,10 @@
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastcrud import PaginatedListResponse, compute_offset, paginated_response
 
 from ...infrastructure.auth.http_exceptions import DuplicateValueException, HTTPException, NotFoundException
-from ...infrastructure.dependencies import AsyncSessionDep, CurrentSuperUserDep
+from ...infrastructure.dependencies import AsyncSessionDep, CurrentSuperUserDep, CurrentUserDep
 from ..common.exceptions import ResourceExistsError, ResourceNotFoundError
 from ..common.utils.error_handler import handle_exception
 from .dependencies import RateLimitServiceDep
@@ -38,8 +38,9 @@ router = APIRouter(tags=["Rate Limits"])
 async def get_rate_limits(
     db: AsyncSessionDep,
     rate_limit_service: RateLimitServiceDep,
-    page: int = 1,
-    items_per_page: int = 10,
+    _: CurrentUserDep,
+    page: int = Query(1, ge=1),
+    items_per_page: int = Query(10, ge=1, le=100),
 ) -> dict[str, Any]:
     """
     Get a paginated list of all rate limits.
@@ -83,6 +84,7 @@ async def get_rate_limit(
     name: str,
     db: AsyncSessionDep,
     rate_limit_service: RateLimitServiceDep,
+    _: CurrentUserDep,
 ) -> dict[str, Any] | None:
     """
     Get detailed information about a specific rate limit by name.

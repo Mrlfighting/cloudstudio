@@ -23,6 +23,7 @@ export interface UserRead {
 /** 注册入参（POST /users/register） */
 export interface RegisterPayload {
   account: string
+  email: string
   password: string
   confirm_password: string
   nickname?: string
@@ -54,7 +55,6 @@ export interface CheckAuthResponse {
 export interface UpdateProfilePayload {
   name?: string
   username?: string
-  email?: string | null
   profile_image_url?: string | null
   user_profile?: string | null
 }

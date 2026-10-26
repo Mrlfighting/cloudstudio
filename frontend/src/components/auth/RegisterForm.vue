@@ -14,6 +14,7 @@ const formRef = ref<FormInstance>()
 const loading = ref(false)
 const form = reactive({
   account: '',
+  email: '',
   password: '',
   confirm_password: '',
   nickname: '',
@@ -21,6 +22,11 @@ const form = reactive({
 })
 
 const rules: FormRules = {
+  email: [
+    { required: true, message: '请输入邮箱地址', trigger: 'blur' },
+    { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' },
+    { max: 254, message: '邮箱地址最长254个字符', trigger: 'blur' },
+  ],
   account: [
     { required: true, message: '请输入账号', trigger: 'blur' },
     { pattern: /^[a-z0-9]{2,20}$/, message: '账号为 2-20 位小写字母或数字', trigger: 'blur' },
@@ -44,6 +50,7 @@ const rules: FormRules = {
 }
 
 async function handleRegister(): Promise<void> {
+  if (loading.value) return
   if (!formRef.value) return
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
@@ -52,6 +59,7 @@ async function handleRegister(): Promise<void> {
   try {
     await authApi.register({
       account: form.account,
+      email: form.email.trim().toLowerCase(),
       password: form.password,
       confirm_password: form.confirm_password,
       ...(form.nickname ? { nickname: form.nickname } : {}),
@@ -60,7 +68,7 @@ async function handleRegister(): Promise<void> {
     const account = form.account
     form.password = ''
     form.confirm_password = ''
-    ElMessage.success('注册成功，请登录')
+    ElMessage.success('注册成功，请登录后完成邮箱验证；邮件任务已受理')
     emit('success', account)
   } catch (err) {
     ElMessage.error(getErrorMessage(err, '注册失败'))
@@ -74,6 +82,9 @@ async function handleRegister(): Promise<void> {
   <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="handleRegister">
     <el-form-item label="账号" prop="account">
       <el-input v-model="form.account" placeholder="2-20 位小写字母或数字" :prefix-icon="'User'" clearable autocomplete="username" />
+    </el-form-item>
+    <el-form-item label="邮箱" prop="email">
+      <el-input v-model.trim="form.email" placeholder="请输入常用邮箱，注册后需要验证" :prefix-icon="'Message'" maxlength="254" type="email" autocomplete="email" inputmode="email" clearable />
     </el-form-item>
     <el-form-item label="密码" prop="password">
       <el-input v-model="form.password" type="password" show-password placeholder="至少 8 位" :prefix-icon="'Lock'" autocomplete="new-password" />

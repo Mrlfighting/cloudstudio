@@ -9,12 +9,10 @@ import { pictureApi } from '@/api/picture'
 import type { PictureRead } from '@/types/picture'
 import SimilarSearchDialog from '@/components/SimilarSearchDialog.vue'
 import ShareDialog from '@/components/ShareDialog.vue'
-import { useAuthStore } from '@/stores/auth'
 import { useAuthGateStore } from '@/stores/authGate'
 
 const route = useRoute()
 const router = useRouter()
-const auth = useAuthStore()
 const authGate = useAuthGateStore()
 
 const loading = ref(false)
@@ -23,6 +21,7 @@ const loadError = ref('')
 const detail = ref<PictureRead | null>(null)
 const similarVisible = ref(false)
 const shareVisible = ref(false)
+const downloadPending = ref(false)
 
 const id = computed(() => Number(route.params.id))
 
@@ -65,11 +64,15 @@ function startDownload(): void {
 }
 
 async function handleDownload(): Promise<void> {
-  if (!auth.isAuthenticated) {
+  if (downloadPending.value) return
+  downloadPending.value = true
+  try {
     const authenticated = await authGate.requireAuthentication({ reason: '登录后即可下载原图' })
     if (!authenticated) return
+    startDownload()
+  } finally {
+    downloadPending.value = false
   }
-  startDownload()
 }
 
 async function handleSimilarSearch(): Promise<void> {

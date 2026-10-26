@@ -2,12 +2,12 @@
  * 认证相关 API
  */
 import { http } from './http'
+import type { EmailRegistrationResult } from '@/features/email-verification/types'
 import type {
   CheckAuthResponse,
   LoginResult,
   MessageResponse,
   RegisterPayload,
-  UserRead,
 } from '@/types/user'
 
 export const authApi = {
@@ -22,8 +22,8 @@ export const authApi = {
   },
 
   /** 注册：返回用户但【不建立会话】 */
-  register(payload: RegisterPayload): Promise<UserRead> {
-    return http.post<UserRead>('/users/register', payload).then((r) => r.data)
+  register(payload: RegisterPayload): Promise<EmailRegistrationResult> {
+    return http.post<EmailRegistrationResult>('/users/register', payload).then((r) => r.data)
   },
 
   /** 注销：CSRF 头由拦截器自动注入 */

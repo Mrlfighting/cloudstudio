@@ -47,6 +47,10 @@ class TestSettings:
         assert settings.DATABASE_URL == expected_url
 
     @patch.dict(os.environ, {}, clear=False)
+    @patch.dict(
+        os.environ,
+        {"POSTGRES_USER": "postgres", "POSTGRES_PASSWORD": "postgres", "POSTGRES_SERVER": "localhost", "POSTGRES_PORT": "5432"},
+    )
     def test_database_url_fallback_to_constructed(self):
         """Test that DATABASE_URL falls back to constructed URL when env var not set."""
         # Remove DATABASE_URL if it exists

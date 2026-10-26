@@ -20,7 +20,9 @@ async def test_get_user_by_username_success(auth_client: AsyncClient, db_session
     data = response.json()
     assert data["username"] == username
     assert "id" in data
-    assert "email" in data
+    # 公开名片不泄漏邮箱；本人完整资料由/users/me返回。
+    assert "email" not in data
+    assert "email_verified" not in data
     assert "name" in data
 
 

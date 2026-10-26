@@ -20,7 +20,11 @@ from ..database.session import async_session
 
 _redis_password = settings.CACHE_REDIS_PASSWORD
 _redis_auth = f":{_redis_password}@" if _redis_password else ""
-_session_redis_url = f"redis://{_redis_auth}{settings.CACHE_REDIS_HOST}:{settings.CACHE_REDIS_PORT}/{settings.CACHE_REDIS_DB}"
+# 超时通过标准 Redis URL 参数传给 Session/CSRF/OAuth 状态存储，不改认证核心。
+_session_redis_url = (
+    f"redis://{_redis_auth}{settings.CACHE_REDIS_HOST}:{settings.CACHE_REDIS_PORT}/{settings.CACHE_REDIS_DB}"
+    "?socket_connect_timeout=2&socket_timeout=2"
+)
 
 _use_redis = settings.SESSION_BACKEND == "redis"
 

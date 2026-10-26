@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:24px 12px;background:#f4f6fb;color:#243348;font-family:Arial,'Microsoft YaHei',sans-serif">
+<!-- 邮箱客户端兼容优先：表格布局、内联样式，不依赖脚本和外部资源。 -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border:1px solid #e7eaf3;border-radius:20px;overflow:hidden">
+<tr><td style="padding:30px 32px 22px;background:#edf5fc;border-bottom:1px solid #e5edf7">
+<p style="margin:0 0 8px;font-size:12px;letter-spacing:3px;color:#ab7089">CLOUD ATELIER</p>
+<p style="margin:0;font-size:24px;font-weight:bold">云上工坊</p>
+<p style="margin:10px 0 0;font-size:13px;color:#68778e">遇见灵感，云上造物</p></td></tr>
+<tr><td style="padding:30px 32px;line-height:1.9;font-size:15px">{% block content %}{% endblock %}</td></tr>
+<tr><td style="padding:20px 32px;background:#fafbfe;border-top:1px solid #edf0f7;font-size:12px;line-height:1.8;color:#7c879a">
+这是一封由账号操作触发的系统邮件，不代表邮箱已完成绑定。若非本人操作，请忽略，勿向他人提供验证码。
+{% if support_email %}<br>需要帮助？请联系 <a href="mailto:{{ support_email }}" style="color:#597eaa">{{ support_email }}</a>。{% endif %}
+</td></tr></table></td></tr></table></body></html>

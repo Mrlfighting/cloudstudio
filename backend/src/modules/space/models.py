@@ -1,6 +1,6 @@
 """空间模型：用户私有图库/相册，以及团队空间成员关联表。"""
 
-from sqlalchemy import BigInteger, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import BigInteger, ForeignKey, Index, Integer, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ...infrastructure.database.models import SoftDeleteMixin, TimestampMixin
@@ -19,6 +19,17 @@ class Space(Base, TimestampMixin, SoftDeleteMixin):
     """
 
     __tablename__ = "spaces"
+    # 数据库约束覆盖所有 API 进程；软删除后允许创建新空间。
+    __table_args__ = (
+        Index(
+            "uq_spaces_active_owner_type",
+            "user_id",
+            "space_type",
+            unique=True,
+            postgresql_where=text("is_deleted = false"),
+            sqlite_where=text("is_deleted = 0"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         "id",
@@ -43,6 +54,16 @@ class Space(Base, TimestampMixin, SoftDeleteMixin):
 
     def __repr__(self) -> str:
         return f"{self.name} (type={self.space_type}, level={self.space_level})"
+
+
+class OutpaintingTask(Base, TimestampMixin):
+    """扩图任务归属凭据，不信任客户端持有的第三方任务编号。"""
+
+    __tablename__ = "outpainting_tasks"
+
+    task_id: Mapped[str] = mapped_column(String(256), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
+    picture_id: Mapped[int] = mapped_column(ForeignKey("pictures.id"), index=True)
 
 
 class SpaceUser(Base, TimestampMixin):

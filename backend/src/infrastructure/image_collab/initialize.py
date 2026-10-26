@@ -14,14 +14,14 @@ logger = get_logger()
 
 
 async def initialize_image_collab() -> None:
-    """连接 RabbitMQ broker；连接失败则降级（broker.available=False），由 WS 端点走同步回退。"""
+    """预连接 RabbitMQ；失败时暂停协同，后续 WebSocket 连接会重试。"""
     broker = get_collab_broker()
     if broker is None:
         return
     try:
         await broker.connect()
-    except Exception as e:
-        logger.warning(f"RabbitMQ 连接失败，图片协同编辑回退到同步内存模式：{e}")
+    except Exception:
+        logger.warning("RabbitMQ 连接失败，图片协同编辑暂不可用，后续连接将重试")
 
 
 async def close_image_collab() -> None:

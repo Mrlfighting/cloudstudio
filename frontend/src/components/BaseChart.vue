@@ -5,6 +5,8 @@
  */
 import * as echarts from 'echarts'
 import 'echarts-wordcloud'
+// 安全升级至 ECharts 6 后沿用官方 v5 主题，保持既有图表颜色和组件位置。
+import 'echarts/theme/v5.js'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{
@@ -19,7 +21,7 @@ let motionPreference: MediaQueryList | null = null
 
 function render() {
   if (!el.value) return
-  if (!chart) chart = echarts.init(el.value)
+  if (!chart) chart = echarts.init(el.value, 'v5')
   chart.setOption(
     {
       ...props.option,

@@ -1,15 +1,19 @@
-"""团队空间图片协同编辑 WebSocket 端点测试（mock 鉴权/锁/DB；broker 不可用走降级回退）。"""
+"""团队空间图片协同编辑 WebSocket 端点测试（模拟会话、共享锁与广播；授权数据使用临时 PostgreSQL）。"""
 
+import json
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
 
 import pytest
 from fastapi import WebSocketDisconnect
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 import src.modules.space.collab as collab_module
 from src.infrastructure.auth.setup import auth
 from src.infrastructure.image_collab import set_collab_manager
+from src.interfaces.main import app
 from src.modules.pictures.crud import crud_pictures
 from src.modules.pictures.schemas import PictureCreateInternal, PictureRead
 from src.modules.space.enums import SpaceRole
@@ -21,6 +25,8 @@ class FakeWebSocket:
 
     def __init__(self, cookies: dict, incoming: list[dict]):
         self.cookies = cookies
+        self.headers = {"origin": "https://test"}
+        self.url = "wss://test/api/v1/spaces/1/pictures/1/collab"
         self._incoming = list(incoming)
         self.sent: list[dict] = []
         self.closed: int | None = None
@@ -37,6 +43,10 @@ class FakeWebSocket:
             return self._incoming.pop(0)
         raise WebSocketDisconnect(code=1000)
 
+    async def receive_text(self) -> str:
+        """生产入口按文本字节长度检查消息。"""
+        return json.dumps(await self.receive_json())
+
     async def send_json(self, data: dict) -> None:
         self.sent.append(data)
 
@@ -46,6 +56,8 @@ class FakeLock:
 
     def __init__(self) -> None:
         self.holder: int | None = None
+        self.state = None
+        self.revision = 0
 
     async def try_acquire(self, space_id: int, picture_id: int, user_id: int) -> bool:
         if self.holder is None or self.holder == user_id:
@@ -62,10 +74,48 @@ class FakeLock:
     async def get_holder(self, space_id: int, picture_id: int) -> int | None:
         return self.holder
 
+    @asynccontextmanager
+    async def serialized(self, *args):
+        """单连接测试的命令串行临界区。"""
+        yield
+
+    async def get_state(self, *args):
+        """模拟共享工作状态。"""
+        return self.state
+
+    async def set_state(self, space_id, picture_id, state):
+        """保留工作状态供下一条命令读取。"""
+        self.state = state
+
+    async def next_revision(self, *args):
+        """模拟共享广播序号。"""
+        self.revision += 1
+        return self.revision
+
+
+class FakeBroker:
+    """只广播已经处理的事件，不消费或再次执行客户端命令。"""
+
+    available = True
+
+    async def ensure_connected(self):
+        """模拟可用依赖。"""
+
+    async def subscribe(self, space_id, picture_id, handler):
+        """注册结果订阅。"""
+        self.handler = handler
+
+    async def publish(self, space_id, picture_id, payload):
+        """本实例也会收到消息，序号保证仅投递一次。"""
+        await self.handler(payload)
+
+    async def unsubscribe(self, *args):
+        """模拟回收专属订阅。"""
+
 
 @pytest.fixture
 def collab_env(monkeypatch, db_session: AsyncSession, test_user: dict, test_user_2: dict):
-    """准备团队+图片+成员；替换 DB 会话 / 锁 / broker（broker 不可用→降级回退）。"""
+    """准备团队+图片+成员；替换 DB 会话 / 锁 / broker（原连接执行命令，broker 只转发事件）。"""
     set_collab_manager(None)
     fake_lock = FakeLock()
 
@@ -92,13 +142,14 @@ def collab_env(monkeypatch, db_session: AsyncSession, test_user: dict, test_user
 
     monkeypatch.setattr(collab_module, "local_session", _fake_local_session)
     monkeypatch.setattr(collab_module, "get_collab_lock", lambda: fake_lock)
-    monkeypatch.setattr(collab_module, "get_collab_broker", lambda: None)
+    monkeypatch.setattr(collab_module, "get_collab_broker", lambda: FakeBroker())
     return _setup
 
 
 @pytest.mark.asyncio
 async def test_unauthenticated_closed(collab_env, monkeypatch):
     """未登录（无有效会话）→ 关闭 4401。"""
+
     async def _no_session(session_id, update_activity=True):
         return None
 
@@ -107,6 +158,72 @@ async def test_unauthenticated_closed(collab_env, monkeypatch):
     await collab_module.collab_websocket(ws, space_id=1, picture_id=1)
     assert ws.closed == 4401
     assert not ws.accepted
+
+
+@pytest.mark.asyncio
+async def test_untrusted_origin_rejected(collab_env):
+    """携带 Cookie 的跨站连接仍必须被拒绝。"""
+    ws = FakeWebSocket(cookies={"session_id": "s"}, incoming=[])
+    ws.headers["origin"] = "https://evil.invalid"
+    await collab_module.collab_websocket(ws, space_id=1, picture_id=1)
+    assert ws.closed == 4403 and not ws.accepted
+
+
+@pytest.mark.asyncio
+async def test_removed_editor_cannot_save_existing_connection(collab_env, monkeypatch, db_session, test_user, test_user_2):
+    """连接后被移除的成员不能使用旧连接继续保存。"""
+    team, pic = await collab_env()
+
+    async def session(*args, **kwargs):
+        """模拟仍未过期的会话，验证撤权检查独立生效。"""
+        return SimpleNamespace(user_id=test_user_2["id"])
+
+    monkeypatch.setattr(auth.sessions, "validate_session", session)
+
+    class RevokedSocket(FakeWebSocket):
+        """在 ENTER_EDIT 后、SAVE 前由团队管理员撤销成员资格。"""
+
+        async def receive_text(self):
+            if self._incoming and self._incoming[0]["type"] == "SAVE":
+                await SpaceService().remove_member(db_session, team["id"], test_user_2["id"])
+            return await super().receive_text()
+
+    ws = RevokedSocket({"session_id": "s"}, [{"type": "ENTER_EDIT"}, {"type": "SAVE", "edit_state": {"rotation": 90}}])
+    await collab_module.collab_websocket(ws, team["id"], pic["id"])
+    assert ws.closed == 4403
+    saved = await crud_pictures.get(db=db_session, id=pic["id"])
+    assert not saved.get("edit_state")
+
+
+@pytest.mark.asyncio
+async def test_mounted_websocket_has_no_http_only_dependencies(collab_env, monkeypatch, test_db_url, test_user):
+    """通过实际挂载的 ASGI WebSocket 路由保存，防止误接 HTTP Request/CSRF 依赖。"""
+    team, pic = await collab_env()
+
+    @asynccontextmanager
+    async def independent_session():
+        """TestClient 使用另一个事件循环，连接不能从测试主循环复用。"""
+        engine = create_async_engine(test_db_url, poolclass=NullPool)
+        try:
+            async with async_sessionmaker(engine, expire_on_commit=False)() as db:
+                yield db
+        finally:
+            await engine.dispose()
+
+    async def session(*args, **kwargs):
+        """测试会话仅用于隔离网络依赖，资源授权仍读取临时数据库。"""
+        return SimpleNamespace(user_id=test_user["id"])
+
+    monkeypatch.setattr(collab_module, "local_session", independent_session)
+    monkeypatch.setattr(auth.sessions, "validate_session", session)
+    client = TestClient(app)
+    with client.websocket_connect(f"/api/v1/spaces/{team['id']}/pictures/{pic['id']}/collab",
+                                  headers={"origin": "http://testserver", "cookie": "session_id=test"}) as socket:
+        assert socket.receive_json()["type"] == "INFO"
+        socket.send_json({"type": "ENTER_EDIT"})
+        assert socket.receive_json()["type"] == "ENTER_EDIT"
+        socket.send_json({"type": "SAVE", "edit_state": {"rotation": 90}})
+        assert socket.receive_json()["message"] == "已保存"
 
 
 @pytest.mark.asyncio

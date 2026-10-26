@@ -45,11 +45,11 @@ class RateLimitException(HTTPException):
         ```
     """
 
-    def __init__(self, detail: str = "Rate limit exceeded"):
+    def __init__(self, detail: str = "Rate limit exceeded", retry_after: int = 60):
         super().__init__(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=detail,
-            headers={"Retry-After": "60"},
+            headers={"Retry-After": str(retry_after)},
         )
 
 

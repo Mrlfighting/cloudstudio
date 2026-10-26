@@ -1,5 +1,7 @@
 """SQLAdmin interface initialization."""
 
+from pathlib import Path
+
 from sqladmin import Admin
 
 from ...infrastructure.config.settings import get_settings
@@ -29,6 +31,7 @@ def create_admin_interface(app) -> Admin | None:
         engine=engine,
         authentication_backend=authentication_backend,
         title="Admin",
+        templates_dir=str(Path(__file__).parent / "templates"),
     )
 
     register_admin_views(admin)

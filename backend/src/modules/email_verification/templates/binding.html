@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% block content %}
+<h1 style="margin:0 0 14px;font-size:25px">验证你的邮箱</h1>
+<p>你正在为云上工坊账号绑定或更换邮箱。请登录发起申请的账号，在邮箱设置中输入以下验证码：</p>
+<p style="margin:24px 0;padding:18px;background:#f0f5fc;border-radius:12px;text-align:center;font-size:34px;font-weight:bold;letter-spacing:10px;color:#3f6d9d">{{ code }}</p>
+<p>验证码有效至 {{ expires_at }}（UTC），仅能使用一次。重新获取验证码后，此验证码将失效。</p>
+<p style="font-size:13px;color:#7c879a">只有登录并成功提交验证码后，绑定才会生效。请勿转发此邮件或验证码。</p>
+{% endblock %}

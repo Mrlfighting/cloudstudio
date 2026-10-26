@@ -3,6 +3,8 @@
 import threading
 
 import redis.asyncio as aioredis
+from redis.asyncio.retry import Retry
+from redis.backoff import NoBackoff
 
 from ..config.settings import get_settings
 from .broker import CollabBroker
@@ -40,6 +42,9 @@ def get_collab_lock() -> CollabLock | None:
                     db=settings.CACHE_REDIS_DB,
                     password=settings.CACHE_REDIS_PASSWORD,
                     decode_responses=True,
+                    socket_connect_timeout=2,
+                    socket_timeout=2,
+                    retry=Retry(NoBackoff(), 0),
                 )
                 _lock = CollabLock(redis=redis, ttl=settings.COLLAB_LOCK_TTL)
     return _lock
